@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: nearshop
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python startup.py && gunicorn app:app --workers 1 --timeout 120
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: 3.11.0
