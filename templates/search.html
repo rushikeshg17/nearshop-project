@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+{% block title %}{% if query %}Search: {{ query }}{% else %}Search Products{% endif %} — NearShop{% endblock %}
+
+{% block extra_head %}
+<style>
+  .result-card { transition: all .2s ease; border-left: 3px solid transparent; cursor: pointer; }
+  .result-card:hover { border-left-color: var(--primary); box-shadow: 0 8px 24px rgba(0,0,0,.1) !important; transform: translateY(-2px); }
+  .result-card.highlighted { border-left-color: var(--accent); background: #f0fdf4 !important; }
+  #searchMap { height: calc(100vh - 140px); min-height: 520px; border-radius: 1rem; overflow: hidden; position: sticky; top: 75px; }
+  .filter-panel { background:#fff; border-radius:1rem; padding:1.5rem; box-shadow:var(--card-shadow); border:1px solid var(--border); position:sticky; top:75px; max-height: calc(100vh - 100px); overflow-y: auto; }
+  .search-topbar { background: linear-gradient(135deg,#1a56db,#3730a3); }
+  .hide-scrollbar::-webkit-scrollbar { display:none; }
+  .rec-section { background:linear-gradient(135deg,#eff6ff,#f0fdf4); border-radius:1rem; padding:1.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Top Search Bar ──────────────────────────────────────────────── -->
+<div class="search-topbar py-3">
+  <div class="container">
+    <form action="/search" method="GET" class="row justify-content-center">
+      <div class="col-lg-8">
+        <div class="input-group input-group-lg shadow-lg" style="border-radius:.75rem;overflow:hidden;">
+          <span class="input-group-text bg-white border-0 ps-3">
+            <i class="bi bi-search text-muted"></i>
+          </span>
+          <input type="text" name="q" class="form-control border-0 ps-2"
+                 value="{{ query }}" placeholder="Search bike chain, notebook, LED bulb…"
+                 autocomplete="off" style="box-shadow:none;">
+          <select name="category" class="form-select border-0 border-start" style="max-width:180px;box-shadow:none;">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-dark px-4 fw-bold" type="submit">Search</button>
+        </div>
+        <!-- Category chips -->
+        <div class="d-flex gap-2 flex-wrap mt-2 hide-scrollbar">
+          <span class="text-white-50 small align-self-center">Quick:</span>
+          {% for cat in categories %}
+          <a href="/search?{% if query %}q={{ query|urlencode }}&{% endif %}category={{ cat|urlencode }}"
+             style="{% if category_filter == cat %}background:#fff;color:#1a56db;{% else %}background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.4);{% endif %}
+                    padding:4px 14px;border-radius:999px;font-size:.8rem;font-weight:600;text-decoration:none;white-space:nowrap;display:inline-block;">
+            {{ cat }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Main Content ───────────────────────────────────────────────── -->
+<div class="bg-light py-4">
+  <div class="container-fluid px-lg-4">
+    <div class="row g-3">
+
+      <!-- LEFT: Filters -->
+      <div class="col-lg-2 d-none d-lg-block">
+        <div class="filter-panel">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0"><i class="bi bi-sliders2 text-primary me-1"></i> Filters</h6>
+            <a href="/search?q={{ query|urlencode }}" class="text-muted small">Reset</a>
+          </div>
+          <form action="/search" method="GET" id="filterForm">
+            <input type="hidden" name="q" value="{{ query }}">
+
+            <!-- Sort -->
+            <div class="mb-3">
+              <label class="filter-section-title">Sort By</label>
+              <select name="sort" class="form-select form-select-sm" onchange="document.getElementById('filterForm').submit()">
+                <option value="relevance" {% if sort_by=='relevance' %}selected{% endif %}>Relevance</option>
+                <option value="price_asc" {% if sort_by=='price_asc' %}selected{% endif %}>Price: Low → High</option>
+                <option value="price_desc" {% if sort_by=='price_desc' %}selected{% endif %}>Price: High → Low</option>
+                <option value="distance" {% if sort_by=='distance' %}selected{% endif %}>Nearest First</option>
+                <option value="stock" {% if sort_by=='stock' %}selected{% endif %}>Most Stock</option>
+              </select>
+            </div>
+
+            <!-- Category -->
+            <div class="mb-3">
+              <label class="filter-section-title">Category</label>
+              <div class="d-flex flex-column gap-1">
+                {% for cat in categories %}
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="category"
+                         value="{{ cat }}" id="fc{{ loop.index }}"
+                         {% if category_filter == cat %}checked{% endif %}
+                         onchange="document.getElementById('filterForm').submit()">
+                  <label class="form-check-label small" for="fc{{ loop.index }}">{{ cat }}</label>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+
+            <!-- Price Range -->
+            <div class="mb-3">
+              <label class="filter-section-title">Price Range (₹)</label>
+              <div class="row g-1">
+                <div class="col-6">
+                  <input type="number" name="min_price" class="form-control form-control-sm"
+                         placeholder="Min" value="{{ min_price if min_price else '' }}">
+                </div>
+                <div class="col-6">
+                  <input type="number" name="max_price" class="form-control form-control-sm"
+                         placeholder="Max" value="{{ max_price if max_price else '' }}">
+                </div>
+              </div>
+            </div>
+
+            <!-- Distance -->
+            <div class="mb-3">
+              <label class="filter-section-title">
+                Distance: <span class="range-value-label" id="distLabel">{{ distance }} km</span>
+              </label>
+              <input type="range" class="form-range" name="distance"
+                     min="1" max="25" value="{{ distance }}"
+                     oninput="document.getElementById('distLabel').textContent=this.value+' km'">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-sm w-100 rounded-pill">Apply</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- MIDDLE: Results -->
+      <div class="col-lg-6">
+
+        <!-- Result header -->
+        <div class="d-flex align-items-center justify-content-between mb-3 px-1">
+          {% if query and category_filter %}
+          <div>
+            <span class="fw-bold">{{ results|length }}</span>
+            <span class="text-muted"> result{% if results|length != 1 %}s{% endif %} for</span>
+            <span class="fw-bold text-primary"> "{{ query }}"</span>
+            <span class="badge bg-primary bg-opacity-10 text-primary ms-1">{{ category_filter }}</span>
+          </div>
+          {% elif query %}
+          <div>
+            <span class="fw-bold">{{ results|length }}</span>
+            <span class="text-muted"> result{% if results|length != 1 %}s{% endif %} for</span>
+            <span class="fw-bold text-primary"> "{{ query }}"</span>
+          </div>
+          {% elif category_filter %}
+          <div>
+            <span class="fw-bold">{{ results|length }}</span>
+            <span class="text-muted"> product{% if results|length != 1 %}s{% endif %} in</span>
+            <span class="fw-bold text-primary"> "{{ category_filter }}"</span>
+          </div>
+          {% else %}
+          <div>
+            <span class="fw-bold">{{ results|length }}</span>
+            <span class="text-muted"> available products nearby</span>
+          </div>
+          {% endif %}
+          <!-- Mobile sort -->
+          <div class="d-lg-none">
+            <select class="form-select form-select-sm w-auto" onchange="location.href='/search?q={{ query|urlencode }}&sort='+this.value">
+              <option>Sort</option>
+              <option value="price_asc">Price ↑</option>
+              <option value="price_desc">Price ↓</option>
+              <option value="distance">Distance</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Results list -->
+        {% if results %}
+          <div class="d-flex flex-column gap-3" id="resultsList">
+            {% for r in results %}
+            <div class="bg-white rounded-4 p-3 shadow-sm result-card"
+                 id="card-{{ r.shop_id }}"
+                 onclick="highlightShop({{ r.shop_id }})">
+              <div class="d-flex gap-3 align-items-start">
+                <!-- Image -->
+                <img src="/static/images/products/{{ r.image }}"
+                     onerror="this.src='/static/images/products/default.png'"
+                     class="rounded-3 object-fit-cover flex-shrink-0"
+                     style="width:90px;height:90px;border:1px solid var(--border);background:var(--bg);">
+                <div class="flex-grow-1 min-width-0">
+                  <div class="d-flex justify-content-between align-items-start gap-2">
+                    <h6 class="fw-bold mb-1 text-truncate">{{ r.product_name }}</h6>
+                    <span class="fw-bold fs-5 text-success text-nowrap">₹{{ "%.0f"|format(r.price) }}</span>
+                  </div>
+                  <p class="text-muted small mb-1">
+                    <i class="bi bi-shop me-1"></i>{{ r.shop_name }}
+                  </p>
+                  <div class="d-flex flex-wrap gap-2 mb-2">
+                    <span class="badge rounded-pill bg-primary bg-opacity-10 text-primary">
+                      <i class="bi bi-geo-alt me-1"></i>{{ r.distance_km }} km
+                    </span>
+                    {% if r.quantity > 20 %}
+                      <span class="badge rounded-pill badge-in-stock">
+                        <i class="bi bi-check-circle me-1"></i>In Stock ({{ r.quantity }})
+                      </span>
+                    {% elif r.quantity > 0 %}
+                      <span class="badge rounded-pill badge-low-stock">
+                        ⚠️ Low Stock ({{ r.quantity }} left)
+                      </span>
+                    {% else %}
+                      <span class="badge rounded-pill badge-out-stock">Out of Stock</span>
+                    {% endif %}
+                    {% if r.is_open %}
+                      <span class="badge rounded-pill bg-success bg-opacity-10 text-success">Open Now</span>
+                    {% else %}
+                      <span class="badge rounded-pill bg-danger bg-opacity-10 text-danger">Closed</span>
+                    {% endif %}
+                  </div>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <a href="/product/{{ r.id }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                      <i class="bi bi-eye me-1"></i>Details
+                    </a>
+                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                            onclick="event.stopPropagation();highlightShop({{ r.shop_id }})">
+                      <i class="bi bi-map me-1"></i>Map
+                    </button>
+                    <a href="https://maps.google.com?q={{ r.latitude }},{{ r.longitude }}"
+                       target="_blank" class="btn btn-sm btn-outline-secondary rounded-pill px-3"
+                       onclick="event.stopPropagation()">
+                      <i class="bi bi-signpost me-1"></i>Directions
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+
+        {% elif query or category_filter %}
+          <!-- Empty state when search or filter has no matches -->
+          <div class="text-center py-5 bg-white rounded-4 shadow-sm">
+            <div style="font-size:4rem;">🔍</div>
+            <h5 class="fw-bold mt-3 mb-2">No products found</h5>
+            <p class="text-muted mb-4">
+              {% if query and category_filter %}
+                No matching "{{ query }}" products found in {{ category_filter }} within this area.
+              {% elif query %}
+                No results for "{{ query }}". Try different keywords or browse categories below.
+              {% else %}
+                No products found in {{ category_filter }} within the selected distance or price range.
+              {% endif %}
+            </p>
+            <div class="d-flex flex-wrap gap-2 justify-content-center">
+              {% for cat in categories %}
+              <a href="/search?category={{ cat|urlencode }}" class="btn btn-sm btn-outline-primary rounded-pill">{{ cat }}</a>
+              {% endfor %}
+            </div>
+          </div>
+
+        {% else %}
+          <!-- Generic empty state -->
+          <div class="text-center py-5 bg-white rounded-4 shadow-sm">
+            <div style="font-size:4rem;">🏪</div>
+            <h5 class="fw-bold mt-3 mb-2">Explore local shops in Ballari</h5>
+            <p class="text-muted">Select a category or search for any item above.</p>
+          </div>
+        {% endif %}
+
+        <!-- ── Recommendations ─────────────────────────────────────── -->
+        {% if recommendations %}
+        <div class="rec-section mt-4">
+          <h6 class="fw-bold mb-3"><span style="font-size:1.2rem;">🤖</span> AI also suggests</h6>
+          <div class="d-flex flex-wrap gap-2">
+            {% for rec in recommendations %}
+            <a href="/search?q={{ rec.product|urlencode }}" class="rec-pill">
+              {{ rec.product }}
+              <span class="rec-confidence">{{ (rec.confidence * 100)|int }}%</span>
+            </a>
+            {% endfor %}
+          </div>
+          <p class="text-muted small mt-2 mb-0">
+            <i class="bi bi-info-circle me-1"></i>Based on what customers usually buy together (Apriori AI)
+          </p>
+        </div>
+        {% endif %}
+
+      </div>
+
+      <!-- RIGHT: Map -->
+      <div class="col-lg-4">
+        <div style="position:sticky;top:75px;">
+          <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+            <span class="fw-semibold small text-muted">
+              <i class="bi bi-map text-primary me-1"></i>
+              {{ shops_map|length }} shop{% if shops_map|length != 1 %}s{% endif %} on map
+            </span>
+            <span class="badge bg-primary bg-opacity-10 text-primary small">Ballari, KA</span>
+          </div>
+          <div id="searchMap" style="height:520px;border-radius:1rem;overflow:hidden;box-shadow:var(--card-shadow);border:1px solid var(--border);"></div>
+        </div>
+      </div>
+
+    </div><!-- /row -->
+  </div><!-- /container -->
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const shopsData = {{ shops_map | tojson }};
+const userLat   = {{ user_lat }};
+const userLng   = {{ user_lng }};
+const defLat    = {{ default_lat }};
+const defLng    = {{ default_lng }};
+
+document.addEventListener('DOMContentLoaded', function() {
+  if (typeof initMap === 'function') {
+    initMap('searchMap', shopsData, userLat || defLat, userLng || defLng);
+  }
+});
+
+function highlightShop(shopId) {
+  // Highlight card
+  document.querySelectorAll('.result-card').forEach(c => c.classList.remove('highlighted'));
+  const card = document.getElementById('card-' + shopId);
+  if (card) {
+    card.classList.add('highlighted');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  // Pan map
+  if (typeof window.highlightShopMarker === 'function') {
+    window.highlightShopMarker(shopId);
+  }
+}
+</script>
+{% endblock %}

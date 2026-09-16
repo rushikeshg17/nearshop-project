@@ -1,0 +1,460 @@
+{% extends "base.html" %}
+{% block title %}Add Products — NearShop{% endblock %}
+
+{% block extra_head %}
+<style>
+* { box-sizing: border-box; }
+body { background: #f8fafc; }
+
+/* ── Step header ── */
+.step-bar {
+  background: #fff; border-bottom: 1px solid #e2e8f0;
+  padding: .9rem 1.5rem; display: flex; align-items: center;
+  gap: 1rem; position: sticky; top: 60px; z-index: 100;
+  flex-wrap: wrap;
+}
+.step-pill {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: .82rem; font-weight: 700; color: #94a3b8;
+}
+.step-pill .num {
+  width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0;
+  color: #64748b; display: flex; align-items: center; justify-content: center;
+  font-size: .75rem; font-weight: 800;
+}
+.step-pill.done .num  { background: #16a34a; color: #fff; }
+.step-pill.done       { color: #16a34a; }
+.step-pill.active .num { background: #1a56db; color: #fff; }
+.step-pill.active     { color: #1a56db; }
+.step-sep { color: #cbd5e1; font-size: 1.1rem; }
+
+/* ── Wrapper ── */
+.add-wrap { display: flex; min-height: calc(100vh - 115px); }
+
+/* ── Step screens ── */
+.screen { display: none; flex: 1; padding: 2rem 1.5rem; }
+.screen.active { display: block; }
+
+/* Step 1 — Category cards */
+.cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px,1fr)); gap: 1rem; max-width: 860px; margin: 0 auto; }
+.cat-card {
+  background: #fff; border: 2px solid #e2e8f0; border-radius: 14px;
+  padding: 1.5rem 1rem; text-align: center; cursor: pointer;
+  transition: all .2s; position: relative;
+}
+.cat-card:hover { border-color: #93c5fd; transform: translateY(-3px); box-shadow: 0 8px 24px rgba(26,86,219,.12); }
+.cat-card.selected { border-color: #1a56db; background: #eff6ff; }
+.cat-card .cat-emoji { font-size: 2.4rem; margin-bottom: .6rem; display: block; }
+.cat-card .cat-name { font-size: .85rem; font-weight: 700; color: #0f172a; }
+.cat-card .cat-count { font-size: .72rem; color: #64748b; margin-top: .2rem; }
+
+/* Step 2 — Products + Cart ── */
+.step2-layout { display: flex; gap: 1.25rem; align-items: flex-start; }
+.products-panel { flex: 1; min-width: 0; }
+.cart-panel {
+  width: 300px; flex-shrink: 0;
+  background: #fff; border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.08);
+  position: sticky; top: 120px;
+  max-height: calc(100vh - 140px);
+  display: flex; flex-direction: column;
+}
+.cart-header { padding: 1rem 1.25rem; border-bottom: 1px solid #f1f5f9; }
+.cart-title { font-weight: 800; font-size: .95rem; color: #0f172a; }
+.cart-items { flex: 1; overflow-y: auto; padding: .5rem .75rem; }
+.cart-empty { text-align: center; padding: 2rem 1rem; color: #94a3b8; font-size: .85rem; }
+.cart-footer { padding: 1rem 1.25rem; border-top: 1px solid #f1f5f9; }
+.btn-save-all {
+  width: 100%; padding: .8rem; border: none; border-radius: 10px;
+  background: #16a34a; color: #fff; font-weight: 800; font-size: .95rem;
+  cursor: pointer; transition: all .2s;
+}
+.btn-save-all:hover:not(:disabled) { background: #15803d; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(22,163,74,.35); }
+.btn-save-all:disabled { background: #94a3b8; cursor: not-allowed; }
+
+/* Filters row */
+.filter-row { display: flex; gap: .6rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+.prod-search { flex:1; min-width:180px; padding:.55rem 1rem; border:1.5px solid #e2e8f0; border-radius:8px; font-size:.88rem; outline:none; }
+.prod-search:focus { border-color:#1a56db; }
+.back-btn { background:none; border:1.5px solid #e2e8f0; border-radius:8px; padding:.5rem .9rem; font-size:.82rem; font-weight:600; color:#475569; cursor:pointer; white-space:nowrap; }
+.back-btn:hover { background:#f8fafc; }
+
+/* Product cards grid */
+.prods-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px,1fr)); gap: .85rem; }
+.prod-card {
+  background: #fff; border: 2px solid #e2e8f0; border-radius: 12px;
+  padding: 1rem; position: relative; transition: all .18s;
+}
+.prod-card:hover { border-color: #bfdbfe; box-shadow: 0 4px 16px rgba(0,0,0,.07); }
+.prod-card.in-cart { border-color: #1a56db; background: #eff6ff; }
+.prod-card.already-have { border-color: #bbf7d0; background: #f0fdf4; }
+
+.prod-icon  { font-size: 1.5rem; margin-bottom: .4rem; }
+.prod-name  { font-size: .82rem; font-weight: 700; color: #0f172a; line-height: 1.3; margin-bottom: .2rem; }
+.prod-brand { font-size: .7rem; color: #64748b; margin-bottom: .35rem; }
+.prod-price { font-size: .82rem; color: #1a56db; font-weight: 700; margin-bottom: .6rem; }
+
+.add-btn {
+  width: 100%; padding: .45rem; border: none; border-radius: 7px;
+  font-size: .8rem; font-weight: 700; cursor: pointer; transition: all .2s;
+  background: #1a56db; color: #fff;
+}
+.add-btn:hover { background: #1e40af; }
+.add-btn.in-cart-btn { background: #dcfce7; color: #15803d; border: 1.5px solid #86efac; }
+.already-badge { font-size: .65rem; font-weight: 700; background: #dcfce7; color: #15803d; padding: 2px 7px; border-radius: 99px; display: inline-block; margin-bottom: .4rem; }
+
+/* Cart item rows */
+.cart-item {
+  padding: .6rem .4rem; border-bottom: 1px solid #f8fafc;
+  font-size: .82rem;
+}
+.cart-item-name { font-weight: 700; color: #0f172a; font-size: .8rem; margin-bottom: .4rem;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-inputs { display: flex; gap: .4rem; align-items: center; }
+.cart-input {
+  flex: 1; min-width: 0; padding: .35rem .5rem;
+  border: 1.5px solid #e2e8f0; border-radius: 6px;
+  font-size: .78rem; outline: none; text-align: center;
+}
+.cart-input:focus { border-color: #1a56db; }
+.cart-remove { background: none; border: none; color: #f87171; cursor: pointer; font-size: .9rem; padding: 0 .2rem; flex-shrink: 0; }
+.cart-label { font-size: .65rem; color: #94a3b8; text-align: center; margin-top: 2px; }
+
+/* Loading */
+.loading-state { text-align: center; padding: 4rem 1rem; color: #94a3b8; }
+
+@media(max-width: 768px) {
+  .step2-layout { flex-direction: column; }
+  .cart-panel { width: 100%; position: static; max-height: none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Step indicator bar -->
+<div class="step-bar">
+  <div class="step-pill active" id="pill-1">
+    <span class="num">1</span> Choose Shop Type
+  </div>
+  <span class="step-sep">›</span>
+  <div class="step-pill" id="pill-2">
+    <span class="num">2</span> Pick Your Products
+  </div>
+  <span class="step-sep">›</span>
+  <div class="step-pill" id="pill-3">
+    <span class="num">3</span> Save to Inventory
+  </div>
+  <div style="margin-left:auto;">
+    <a href="/products" class="back-btn"><i class="bi bi-arrow-left me-1"></i> My Inventory</a>
+  </div>
+</div>
+
+<div class="add-wrap">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SCREEN 1 — Pick a category
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="screen active" id="screen1">
+    <div style="max-width:860px;margin:0 auto;">
+      <div class="text-center mb-4">
+        <h4 class="fw-bold mb-1">What type of shop do you run?</h4>
+        <p class="text-muted small">Select your category — we'll show all products for it.</p>
+      </div>
+      <div class="cat-grid" id="catGrid">
+        <!-- filled by JS -->
+      </div>
+      <div class="text-center mt-4">
+        <button onclick="goStep2()" id="nextBtn"
+                style="background:#1a56db;color:#fff;border:none;padding:.75rem 2.5rem;border-radius:10px;font-weight:800;font-size:1rem;cursor:pointer;opacity:.4;transition:all .2s;" disabled>
+          Show Products <i class="bi bi-arrow-right ms-1"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SCREEN 2 — Browse & add products
+  ══════════════════════════════════════════════════════════════ -->
+  <div class="screen" id="screen2">
+    <div class="step2-layout">
+
+      <!-- Products panel -->
+      <div class="products-panel">
+        <div class="filter-row">
+          <button class="back-btn" onclick="goStep1()">
+            <i class="bi bi-arrow-left me-1"></i> Change Category
+          </button>
+          <input type="text" class="prod-search" id="prodSearch" placeholder="🔍  Search products…" oninput="renderProducts()">
+        </div>
+        <div id="prodHeader" style="margin-bottom:.75rem;">
+          <span style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#64748b;" id="catLabel"></span>
+        </div>
+        <div class="prods-grid" id="prodGrid">
+          <div class="loading-state">
+            <div class="spinner-border text-primary"></div>
+            <div class="mt-2">Loading products…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cart panel -->
+      <div class="cart-panel">
+        <div class="cart-header">
+          <div class="cart-title"><i class="bi bi-cart3 text-primary me-1"></i> My Selection
+            <span id="cartCount"
+                  style="background:#1a56db;color:#fff;border-radius:99px;font-size:.7rem;padding:1px 8px;margin-left:4px;font-weight:800;">0</span>
+          </div>
+          <div style="font-size:.72rem;color:#94a3b8;margin-top:2px;">Set quantity & price for each item</div>
+        </div>
+        <div class="cart-items" id="cartItems">
+          <div class="cart-empty">
+            <i class="bi bi-cart-plus" style="font-size:1.5rem;color:#cbd5e1;"></i>
+            <div class="mt-1">Click <strong>+ Add</strong> on any product</div>
+          </div>
+        </div>
+        <div class="cart-footer">
+          <button class="btn-save-all" id="saveAllBtn" onclick="saveAll()" disabled>
+            <i class="bi bi-check2-circle me-1"></i> Save to My Inventory
+          </button>
+          <div class="text-center mt-2" style="font-size:.72rem;color:#94a3b8;">
+            All items will be added to your shop
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── State ────────────────────────────────────────────────────────
+const EXISTING  = new Set({{ existing_names | tojson }});
+let   catalog   = {};      // { category: [items] }
+let   selCat    = null;    // currently selected category
+let   cart      = {};      // { name: { item, qty, price } }
+
+const CAT_ICONS = {
+  'Vehicle Spare Parts':'🔧','Electrical':'⚡','Hardware':'🔨',
+  'Plumbing':'🚰','Footwear':'👟',
+  'Stationery':'✏️','Books':'📚','General Store':'🏪'
+};
+const CAT_COLORS = {
+  'Vehicle Spare Parts':'#fee2e2','Electrical':'#fef3c7','Hardware':'#f3e8ff',
+  'Plumbing':'#dbeafe','Footwear':'#fce7f3',
+  'Stationery':'#fff7ed','Books':'#ecfdf5','General Store':'#f1f5f9'
+};
+
+const SHOP_CATEGORY = {{ shop.category | tojson if shop and shop.category else 'null' }};
+
+// ── Fetch catalog on load ────────────────────────────────────────
+fetch('/api/catalog')
+  .then(r => r.json())
+  .then(data => {
+    catalog = data;
+    buildCatGrid();
+    if (SHOP_CATEGORY && catalog[SHOP_CATEGORY]) {
+      selectCat(SHOP_CATEGORY);
+    }
+  })
+  .catch(() => {
+    document.getElementById('catGrid').innerHTML =
+      '<div class="text-center text-danger p-4">Failed to load. Please refresh.</div>';
+  });
+
+// ── Step 1: category grid ────────────────────────────────────────
+function buildCatGrid() {
+  const grid = document.getElementById('catGrid');
+  grid.innerHTML = Object.entries(catalog).map(([cat, items]) => `
+    <div class="cat-card" onclick="selectCat('${cat}')" id="ccard-${cat.replace(/ /g,'_')}">
+      <span class="cat-emoji">${CAT_ICONS[cat] || '📦'}</span>
+      <div class="cat-name">${cat}</div>
+      <div class="cat-count">${items.length} products</div>
+    </div>`).join('');
+}
+
+function selectCat(cat) {
+  selCat = cat;
+  document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('ccard-' + cat.replace(/ /g,'_'));
+  if (card) card.classList.add('selected');
+  const btn = document.getElementById('nextBtn');
+  btn.disabled = false;
+  btn.style.opacity = '1';
+}
+
+// ── Step 2: go to product browser ───────────────────────────────
+function goStep2() {
+  if (!selCat) return;
+  document.getElementById('screen1').classList.remove('active');
+  document.getElementById('screen2').classList.add('active');
+  document.getElementById('pill-1').className = 'step-pill done';
+  document.getElementById('pill-2').className = 'step-pill active';
+  document.getElementById('catLabel').textContent =
+    `${CAT_ICONS[selCat] || '📦'}  ${selCat}  ·  ${(catalog[selCat]||[]).length} products`;
+  document.getElementById('prodSearch').value = '';
+  renderProducts();
+  // scroll to top
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function goStep1() {
+  document.getElementById('screen2').classList.remove('active');
+  document.getElementById('screen1').classList.add('active');
+  document.getElementById('pill-1').className = 'step-pill active';
+  document.getElementById('pill-2').className = 'step-pill';
+}
+
+// ── Render product cards ─────────────────────────────────────────
+function renderProducts() {
+  const grid = document.getElementById('prodGrid');
+  const q    = document.getElementById('prodSearch').value.toLowerCase().trim();
+  let items  = catalog[selCat] || [];
+  if (q) items = items.filter(i => i.name.toLowerCase().includes(q) || (i.brand||'').toLowerCase().includes(q));
+
+  if (!items.length) {
+    grid.innerHTML = '<div class="loading-state"><i class="bi bi-search" style="font-size:2rem;"></i><div class="mt-2">No products found</div></div>';
+    return;
+  }
+
+  grid.innerHTML = items.map(item => {
+    const inCart     = !!cart[item.name];
+    const alreadyHas = EXISTING.has(item.name.toLowerCase());
+    return `
+    <div class="prod-card ${inCart ? 'in-cart' : ''} ${alreadyHas && !inCart ? 'already-have' : ''}"
+         id="pcard-${CSS.escape(item.name)}">
+      <div class="prod-icon">${CAT_ICONS[item.category] || '📦'}</div>
+      <div class="prod-name">${item.name}</div>
+      ${item.brand ? `<div class="prod-brand">${item.brand}</div>` : ''}
+      <div class="prod-price">₹${item.suggested_price}</div>
+      ${alreadyHas ? '<span class="already-badge">✓ In stock</span>' : ''}
+      <button class="add-btn ${inCart ? 'in-cart-btn' : ''}"
+              onclick="toggleCart(${JSON.stringify(item).replace(/"/g,'&quot;')})">
+        ${inCart ? '✓ Added' : '+ Add'}
+      </button>
+    </div>`;
+  }).join('');
+}
+
+// ── Cart operations ──────────────────────────────────────────────
+function toggleCart(item) {
+  if (cart[item.name]) {
+    delete cart[item.name];
+  } else {
+    cart[item.name] = { item, qty: 10, price: item.suggested_price };
+  }
+  renderProducts();
+  renderCart();
+}
+
+function renderCart() {
+  const count   = Object.keys(cart).length;
+  document.getElementById('cartCount').textContent = count;
+  document.getElementById('saveAllBtn').disabled   = count === 0;
+
+  const el = document.getElementById('cartItems');
+  if (!count) {
+    el.innerHTML = `<div class="cart-empty">
+      <i class="bi bi-cart-plus" style="font-size:1.5rem;color:#cbd5e1;"></i>
+      <div class="mt-1">Click <strong>+ Add</strong> on any product</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = Object.values(cart).map(({item, qty, price}) => `
+    <div class="cart-item">
+      <div class="cart-item-name" title="${item.name}">${item.name}</div>
+      <div class="cart-inputs">
+        <div style="flex:1;">
+          <input type="number" class="cart-input" value="${qty}" min="1"
+                 onchange="updateCart('${item.name.replace(/'/g,"\\'")}','qty',this.value)"
+                 placeholder="Qty">
+          <div class="cart-label">Quantity</div>
+        </div>
+        <div style="flex:1;">
+          <input type="number" class="cart-input" value="${price}" min="0.01" step="0.01"
+                 onchange="updateCart('${item.name.replace(/'/g,"\\'")}','price',this.value)"
+                 placeholder="Price">
+          <div class="cart-label">Price ₹</div>
+        </div>
+        <button class="cart-remove" onclick="removeFromCart('${item.name.replace(/'/g,"\\'")}')">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function updateCart(name, field, val) {
+  if (!cart[name]) return;
+  if (field === 'qty')   cart[name].qty   = Math.max(1, parseInt(val) || 1);
+  if (field === 'price') cart[name].price = Math.max(0.01, parseFloat(val) || 0.01);
+}
+
+function removeFromCart(name) {
+  delete cart[name];
+  renderProducts();
+  renderCart();
+}
+
+// ── Save all to inventory ────────────────────────────────────────
+async function saveAll() {
+  const items = Object.values(cart).map(({item, qty, price}) => ({
+    name:        item.name,
+    category:    item.category,
+    brand:       item.brand || '',
+    description: item.description || '',
+    price:       parseFloat(price) || item.suggested_price,
+    quantity:    parseInt(qty) || 1,
+  }));
+
+  if (!items.length) return;
+
+  const btn = document.getElementById('saveAllBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving…';
+
+  try {
+    const res  = await fetch('/api/products/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      // Mark as already-have
+      items.forEach(i => EXISTING.add(i.name.toLowerCase()));
+      cart = {};
+      renderProducts();
+      renderCart();
+
+      // Update step indicator
+      document.getElementById('pill-2').className = 'step-pill done';
+      document.getElementById('pill-3').className = 'step-pill active';
+
+      // Show success toast and redirect after 2s
+      showToast(`✅ ${data.added} product(s) saved to your inventory!`, 'success');
+      setTimeout(() => { window.location.href = '/products'; }, 2000);
+    } else {
+      showToast('Something went wrong. Try again.', 'danger');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Save to My Inventory';
+    }
+  } catch(e) {
+    showToast('Network error. Please try again.', 'danger');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Save to My Inventory';
+  }
+}
+
+function showToast(msg, type) {
+  const t = document.createElement('div');
+  t.className = `alert alert-${type} shadow position-fixed top-0 end-0 m-3`;
+  t.style.cssText = 'z-index:9999;min-width:300px;font-weight:600;';
+  t.innerHTML = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .4s'; setTimeout(()=>t.remove(),400); }, 3000);
+}
+</script>
+{% endblock %}

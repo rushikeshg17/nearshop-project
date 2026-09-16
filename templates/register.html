@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+{% block title %}Register — NearShop{% endblock %}
+
+{% block extra_head %}
+<style>
+  .register-wrapper { min-height: calc(100vh - 70px); background: linear-gradient(135deg, #f0f4ff 0%, #f0fdf4 100%); display: flex; align-items: center; padding: 2rem 0; }
+  .reg-card { background: #fff; border-radius: 1.25rem; box-shadow: 0 8px 40px rgba(0,0,0,0.1); overflow: hidden; max-width: 860px; width: 100%; margin: 0 auto; }
+  .reg-side { background: linear-gradient(160deg, #1a56db 0%, #3730a3 100%); padding: 3rem 2rem; color: #fff; display: flex; flex-direction: column; justify-content: center; min-height: 400px; }
+  .reg-body { padding: 2.5rem; }
+
+  /* Tabs */
+  .reg-tabs { display: flex; gap: 8px; background: #f1f5f9; padding: 6px; border-radius: 12px; margin-bottom: 1.75rem; }
+  .reg-tab-btn {
+    flex: 1; padding: 0.65rem 1rem; border: none; border-radius: 8px;
+    font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: all .2s;
+    background: transparent; color: #64748b;
+  }
+  .reg-tab-btn.active { background: #fff; color: #1a56db; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+
+  /* Form fields */
+  .field-label { font-size: 0.8rem; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; display: block; }
+  .field-input { width: 100%; padding: 0.7rem 1rem; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; color: #0f172a; background: #f8fafc; transition: all .2s; outline: none; }
+  .field-input:focus { border-color: #1a56db; background: #fff; box-shadow: 0 0 0 3px rgba(26,86,219,0.1); }
+  .field-input::placeholder { color: #94a3b8; }
+  select.field-input { cursor: pointer; }
+  textarea.field-input { resize: none; }
+
+  /* Map */
+  #registerMap { height: 260px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-top: 6px; }
+  .coord-row input { font-size: 0.85rem; color: #64748b; background: #f1f5f9; }
+
+  /* Submit button */
+  .btn-register { width: 100%; padding: 0.85rem; border: none; border-radius: 10px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all .2s; margin-top: 0.5rem; }
+  .btn-register-primary { background: #1a56db; color: #fff; }
+  .btn-register-primary:hover { background: #1e40af; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(26,86,219,.35); }
+  .btn-register-success { background: #16a34a; color: #fff; }
+  .btn-register-success:hover { background: #15803d; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(22,163,74,.35); }
+
+  /* Password strength */
+  .pwd-strength { height: 4px; border-radius: 4px; transition: all .3s; margin-top: 6px; }
+
+  /* Pane visibility */
+  .reg-pane { display: none; }
+  .reg-pane.active { display: block; }
+
+  @media (max-width: 767px) {
+    .reg-side { display: none; }
+    .reg-body { padding: 1.5rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="register-wrapper">
+  <div class="container">
+    <div class="reg-card mx-auto">
+      <div class="row g-0">
+
+        <!-- Side Panel -->
+        <div class="col-md-4 reg-side">
+          <div class="mb-4">
+            <div class="fw-bold fs-4 mb-1">
+              <i class="bi bi-geo-alt-fill me-1"></i>NearShop
+            </div>
+            <p class="opacity-75 small">Ballari's hyperlocal inventory discovery platform</p>
+          </div>
+          <hr style="border-color:rgba(255,255,255,.2);">
+          <div class="mt-3">
+            {% if active_tab == 'owner' %}
+            <h5 class="fw-bold mb-3">List your shop for free</h5>
+            <ul class="list-unstyled small opacity-90">
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Manage your product inventory</li>
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Get discovered by local customers</li>
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>AI-powered stock predictions</li>
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Price anomaly alerts</li>
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Sales analytics dashboard</li>
+            </ul>
+            {% else %}
+            <h5 class="fw-bold mb-3">Why join NearShop?</h5>
+            <ul class="list-unstyled small opacity-90">
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Find products at nearby shops</li>
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Compare prices before you visit</li>
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Check real-time stock availability</li>
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Get directions to any shop</li>
+              <li class="mb-2"><i class="bi bi-check-circle-fill me-2 text-success"></i>Support local Ballari businesses</li>
+            </ul>
+            {% endif %}
+          </div>
+          <div class="mt-auto pt-4">
+            <p class="small opacity-60 mb-0">Already have an account? <a href="/login" class="text-white fw-bold">Login here</a></p>
+          </div>
+        </div>
+
+        <!-- Form Panel -->
+        <div class="col-md-8 reg-body">
+          <h4 class="fw-bold mb-1">Create an Account</h4>
+          <p class="text-muted small mb-4">Join NearShop — it's free!</p>
+
+          <!-- Custom Tabs -->
+          <div class="reg-tabs" role="tablist">
+            <button class="reg-tab-btn {% if active_tab != 'owner' %}active{% endif %}"
+                    onclick="switchTab('customer')" id="btn-customer">
+              <i class="bi bi-person me-1"></i> Customer
+            </button>
+            <button class="reg-tab-btn {% if active_tab == 'owner' %}active{% endif %}"
+                    onclick="switchTab('owner')" id="btn-owner">
+              <i class="bi bi-shop me-1"></i> Shop Owner
+            </button>
+          </div>
+
+          <!-- ── Customer Form ── -->
+          <div class="reg-pane {% if active_tab != 'owner' %}active{% endif %}" id="pane-customer">
+            <form action="/register" method="POST" onsubmit="return validateCustomer()">
+              <input type="hidden" name="role" value="customer">
+
+              <div class="mb-3">
+                <label class="field-label">Full Name</label>
+                <input type="text" name="name" class="field-input" placeholder="e.g. Ravi Kumar" required>
+              </div>
+
+              <div class="mb-3">
+                <label class="field-label">Email Address</label>
+                <input type="email" name="email" class="field-input" placeholder="you@example.com" required>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="field-label">Password</label>
+                  <input type="password" name="password" id="c_pwd" class="field-input"
+                         placeholder="Min. 6 characters" required
+                         oninput="showStrength('c_pwd','c_strength')">
+                  <div class="pwd-strength" id="c_strength" style="background:#e2e8f0;"></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="field-label">Confirm Password</label>
+                  <input type="password" name="confirm_password" id="c_confirm" class="field-input"
+                         placeholder="Repeat password" required>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-register btn-register-primary">
+                <i class="bi bi-person-check me-1"></i> Create Account
+              </button>
+            </form>
+          </div>
+
+          <!-- ── Shop Owner Form ── -->
+          <div class="reg-pane {% if active_tab == 'owner' %}active{% endif %}" id="pane-owner">
+            <form action="/register" method="POST" onsubmit="return validateOwner()">
+              <input type="hidden" name="role" value="owner">
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="field-label">Shop Name</label>
+                  <input type="text" name="shop_name" class="field-input" placeholder="e.g. Srinivas Auto Parts" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="field-label">Owner Name</label>
+                  <input type="text" name="owner_name" class="field-input" placeholder="Your full name" required>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="field-label">Email Address</label>
+                  <input type="email" name="email" class="field-input" placeholder="you@example.com" required>
+                </div>
+                <div class="col-md-6">
+                  <label class="field-label">Phone Number</label>
+                  <input type="tel" name="phone" class="field-input" placeholder="9876543210"
+                         pattern="[0-9]{10}" title="10-digit mobile number" required>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-7">
+                  <label class="field-label">Shop Category</label>
+                  <select name="category" class="field-input" required>
+                    <option value="">— Select a category —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-5">
+                  <label class="field-label">City</label>
+                  <input type="text" class="field-input" value="Ballari, Karnataka" readonly style="color:#64748b;">
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="field-label">Shop Address</label>
+                <textarea name="address" class="field-input" rows="2"
+                          placeholder="e.g. Shop No. 12, MG Road, Ballari" required></textarea>
+              </div>
+
+              <!-- Map -->
+              <div class="mb-3">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                  <label class="field-label mb-0">
+                    <i class="bi bi-geo-alt-fill text-danger me-1"></i>
+                    Pin Your Shop Location
+                  </label>
+                  <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 rounded-pill"
+                          style="font-size:0.75rem;font-weight:600;" onclick="locateUserShop()">
+                    <i class="bi bi-crosshair me-1"></i>Use My Current Location
+                  </button>
+                </div>
+                <div class="text-muted small mb-2" style="font-size:0.78rem;">
+                  Click anywhere on the map or drag the pin to set your exact shop coordinates.
+                </div>
+                <div id="registerMap"></div>
+                <div class="row g-2 mt-2 coord-row">
+                  <div class="col-6">
+                    <label class="small text-muted mb-0" style="font-size:0.7rem;">Latitude</label>
+                    <input type="number" step="any" id="lat" name="latitude"
+                           class="field-input" value="15.139400" placeholder="Latitude" required>
+                  </div>
+                  <div class="col-6">
+                    <label class="small text-muted mb-0" style="font-size:0.7rem;">Longitude</label>
+                    <input type="number" step="any" id="lng" name="longitude"
+                           class="field-input" value="76.921400" placeholder="Longitude" required>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                  <label class="field-label">Password</label>
+                  <input type="password" name="password" id="o_pwd" class="field-input"
+                         placeholder="Min. 6 characters" required
+                         oninput="showStrength('o_pwd','o_strength')">
+                  <div class="pwd-strength" id="o_strength" style="background:#e2e8f0;"></div>
+                </div>
+                <div class="col-md-6">
+                  <label class="field-label">Confirm Password</label>
+                  <input type="password" name="confirm_password" id="o_confirm" class="field-input"
+                         placeholder="Repeat password" required>
+                </div>
+              </div>
+
+              <button type="submit" class="btn-register btn-register-success">
+                <i class="bi bi-shop me-1"></i> Register My Shop
+              </button>
+            </form>
+          </div>
+
+          <!-- Login link (mobile) -->
+          <p class="text-center text-muted small mt-4 d-md-none">
+            Already have an account? <a href="/login" class="fw-bold">Login</a>
+          </p>
+        </div><!-- /col -->
+
+      </div><!-- /row -->
+    </div><!-- /card -->
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Tab switching ────────────────────────────────────────────────
+function switchTab(tab) {
+  document.getElementById('pane-customer').classList.toggle('active', tab === 'customer');
+  document.getElementById('pane-owner').classList.toggle('active', tab === 'owner');
+  document.getElementById('btn-customer').classList.toggle('active', tab === 'customer');
+  document.getElementById('btn-owner').classList.toggle('active', tab === 'owner');
+  if (tab === 'owner') {
+    setTimeout(initRegisterMap, 150);
+  }
+}
+
+// ── Password strength meter ──────────────────────────────────────
+function showStrength(inputId, barId) {
+  const val = document.getElementById(inputId).value;
+  const bar = document.getElementById(barId);
+  if (!val) { bar.style.background = '#e2e8f0'; bar.style.width = '0'; return; }
+  const score = (val.length >= 8 ? 1 : 0) + (/[A-Z]/.test(val) ? 1 : 0)
+              + (/[0-9]/.test(val) ? 1 : 0) + (/[^A-Za-z0-9]/.test(val) ? 1 : 0);
+  const colors = ['#ef4444','#f59e0b','#3b82f6','#16a34a'];
+  bar.style.background = colors[score - 1] || '#e2e8f0';
+  bar.style.width = (score * 25) + '%';
+  bar.style.display = 'block';
+}
+
+// ── Validation ───────────────────────────────────────────────────
+function validateCustomer() {
+  const pwd = document.getElementById('c_pwd').value;
+  const cnf = document.getElementById('c_confirm').value;
+  if (pwd.length < 6) { alert('Password must be at least 6 characters.'); return false; }
+  if (pwd !== cnf) { alert('Passwords do not match.'); return false; }
+  return true;
+}
+function validateOwner() {
+  const pwd = document.getElementById('o_pwd').value;
+  const cnf = document.getElementById('o_confirm').value;
+  if (pwd.length < 6) { alert('Password must be at least 6 characters.'); return false; }
+  if (pwd !== cnf) { alert('Passwords do not match.'); return false; }
+  return true;
+}
+
+// ── Leaflet Map ──────────────────────────────────────────────────
+let regMap = null, regMarker = null;
+
+function setCoords(lat, lng) {
+  const latVal = Number(lat).toFixed(6);
+  const lngVal = Number(lng).toFixed(6);
+  const latEl = document.getElementById('lat');
+  const lngEl = document.getElementById('lng');
+  if (latEl) latEl.value = latVal;
+  if (lngEl) lngEl.value = lngVal;
+  if (regMarker) {
+    regMarker.setPopupContent(`<b>📍 Shop Location</b><br>${latVal}, ${lngVal}`).openPopup();
+  }
+}
+
+function initRegisterMap() {
+  const container = document.getElementById('registerMap');
+  if (!container) return;
+
+  if (regMap) {
+    regMap.invalidateSize();
+    return;
+  }
+
+  // Handle any leftover leaflet instance safely
+  if (container._leaflet_id) {
+    container._leaflet_id = null;
+  }
+
+  const initialLat = parseFloat(document.getElementById('lat')?.value) || 15.1394;
+  const initialLng = parseFloat(document.getElementById('lng')?.value) || 76.9214;
+
+  regMap = L.map('registerMap', { zoomControl: true }).setView([initialLat, initialLng], 15);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(regMap);
+
+  // Custom high-visibility pin
+  const pinIcon = L.divIcon({
+    className: 'custom-shop-pin',
+    html: `<div style="background:#1a56db;width:34px;height:34px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
+      <span style="transform:rotate(45deg);color:#fff;font-size:16px;">🏪</span>
+    </div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 34],
+    popupAnchor: [0, -36]
+  });
+
+  regMarker = L.marker([initialLat, initialLng], { draggable: true, icon: pinIcon })
+    .addTo(regMap)
+    .bindPopup(`<b>📍 Shop Location</b><br>${initialLat.toFixed(6)}, ${initialLng.toFixed(6)}`)
+    .openPopup();
+
+  // Click anywhere on map to pin location
+  regMap.on('click', function(e) {
+    const { lat, lng } = e.latlng;
+    regMarker.setLatLng([lat, lng]);
+    setCoords(lat, lng);
+  });
+
+  // Drag marker to adjust
+  regMarker.on('dragend', function() {
+    const pos = regMarker.getLatLng();
+    setCoords(pos.lat, pos.lng);
+  });
+
+  // Sync when user manually edits coordinate inputs
+  ['lat', 'lng'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', function() {
+      const lat = parseFloat(document.getElementById('lat').value);
+      const lng = parseFloat(document.getElementById('lng').value);
+      if (!isNaN(lat) && !isNaN(lng)) {
+        regMarker.setLatLng([lat, lng]);
+        regMap.setView([lat, lng], regMap.getZoom());
+        setCoords(lat, lng);
+      }
+    });
+  });
+
+  // Ensure tiles load properly after container rendering
+  setTimeout(() => { if (regMap) regMap.invalidateSize(); }, 200);
+}
+
+// ── Geolocation: Use current location ─────────────────────────────
+function locateUserShop() {
+  if (!navigator.geolocation) {
+    alert('Geolocation is not supported by your browser.');
+    return;
+  }
+  
+  const btn = event?.currentTarget;
+  if (btn) {
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Locating…';
+    btn.disabled = true;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    position => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      
+      initRegisterMap();
+      if (regMap && regMarker) {
+        regMarker.setLatLng([lat, lng]);
+        regMap.setView([lat, lng], 16);
+        setCoords(lat, lng);
+      }
+      if (btn) {
+        btn.innerHTML = '✔ Pinned!';
+        btn.classList.replace('btn-outline-primary', 'btn-success');
+        setTimeout(() => {
+          btn.innerHTML = '<i class="bi bi-crosshair me-1"></i>Use My Current Location';
+          btn.classList.replace('btn-success', 'btn-outline-primary');
+          btn.disabled = false;
+        }, 2000);
+      }
+    },
+    err => {
+      alert('Unable to retrieve your location: ' + err.message);
+      if (btn) {
+        btn.innerHTML = '<i class="bi bi-crosshair me-1"></i>Use My Current Location';
+        btn.disabled = false;
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+// ── Init on page load ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  // If owner pane is already active (server-side), init map
+  if (document.getElementById('pane-owner')?.classList.contains('active')) {
+    setTimeout(initRegisterMap, 250);
+  }
+});
+</script>
+{% endblock %}

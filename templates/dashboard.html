@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — NearShop{% endblock %}
+
+{% block extra_head %}
+<style>
+  body { background: #f1f5f9; }
+
+  /* Layout */
+  .dash-wrap { display: flex; min-height: calc(100vh - 60px); }
+
+  /* Sidebar */
+  .dash-sidebar {
+    width: 240px; flex-shrink: 0;
+    background: linear-gradient(180deg,#0f172a,#1e293b);
+    display: flex; flex-direction: column;
+    padding: 1.5rem 1rem;
+    position: sticky; top: 60px;
+    height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+  .dash-sidebar .brand { color:#fff; font-size:1.1rem; font-weight:800; margin-bottom:.25rem; }
+  .dash-sidebar .shop-tag { color:#64748b; font-size:.78rem; margin-bottom:1.5rem; }
+  .dash-nav a {
+    display:flex; align-items:center; gap:.6rem;
+    padding:.65rem 1rem; border-radius:8px;
+    color:#94a3b8; font-size:.88rem; font-weight:500;
+    text-decoration:none; transition:all .2s; margin-bottom:2px;
+  }
+  .dash-nav a:hover { background:rgba(255,255,255,.08); color:#fff; }
+  .dash-nav a.active { background:#1a56db; color:#fff; box-shadow:0 4px 12px rgba(26,86,219,.4); }
+  .dash-nav .divider { border-top:1px solid #334155; margin:1rem 0; }
+
+  /* Main content */
+  .dash-main { flex:1; padding:1.75rem; overflow:auto; }
+
+  /* KPI cards */
+  .kpi { background:#fff; border-radius:12px; padding:1.25rem 1.5rem; box-shadow:0 2px 12px rgba(0,0,0,.06); display:flex; align-items:center; gap:1rem; border-left:4px solid transparent; transition:transform .2s,box-shadow .2s; }
+  .kpi:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,.1); }
+  .kpi-icon { width:48px; height:48px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.4rem; flex-shrink:0; }
+  .kpi-value { font-size:1.8rem; font-weight:800; line-height:1; }
+  .kpi-label { font-size:.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:#64748b; margin-top:3px; }
+
+  /* Chart cards */
+  .chart-card { background:#fff; border-radius:12px; padding:1.25rem 1.5rem; box-shadow:0 2px 12px rgba(0,0,0,.06); height:100%; }
+  .chart-card .chart-title { font-size:.8rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#64748b; margin-bottom:1rem; }
+  /* CRITICAL: fixed pixel height prevents chart resize loop */
+  .chart-box { position:relative; height:260px; width:100%; }
+  .chart-box-sm { position:relative; height:220px; width:100%; }
+
+  /* Alert cards */
+  .alert-card { background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; padding:1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+
+  /* Prediction table */
+  .pred-table th { font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; font-weight:700; border-bottom:2px solid #f1f5f9; padding:.6rem .75rem; background:transparent; }
+  .pred-table td { padding:.7rem .75rem; border-bottom:1px solid #f1f5f9; font-size:.88rem; vertical-align:middle; }
+  .pred-table tr:last-child td { border-bottom:none; }
+
+  @media(max-width:768px) {
+    .dash-sidebar { display:none; }
+    .dash-main { padding:1rem; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-wrap">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────── -->
+  <aside class="dash-sidebar d-none d-md-flex flex-column">
+    <div>
+      <div class="brand"><i class="bi bi-geo-alt-fill text-primary"></i> NearShop</div>
+      <div class="shop-tag">{{ current_user.shop_name | default('My Shop') }}</div>
+    </div>
+
+    <!-- User avatar -->
+    <div class="d-flex align-items-center gap-2 mb-4 p-2 rounded-3" style="background:rgba(255,255,255,.06);">
+      <div class="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold"
+           style="width:36px;height:36px;background:#1a56db;font-size:.9rem;flex-shrink:0;">
+        {{ current_user.name[0] | upper }}
+      </div>
+      <div>
+        <div class="text-white fw-semibold" style="font-size:.85rem;">{{ current_user.name }}</div>
+        <div class="text-secondary" style="font-size:.72rem;">Shop Owner</div>
+      </div>
+    </div>
+
+    <nav class="dash-nav">
+      <a href="/dashboard" class="active"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/products"><i class="bi bi-box-seam"></i> Products</a>
+      <a href="/catalog"><i class="bi bi-grid-3x3-gap"></i> Browse Catalog</a>
+      <a href="/search"><i class="bi bi-search"></i> Search</a>
+      <a href="#analytics"><i class="bi bi-bar-chart-line"></i> Analytics</a>
+      <div class="divider"></div>
+      <a href="/profile"><i class="bi bi-person-circle"></i> Profile</a>
+      <a href="/logout" style="color:#f87171;"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    </nav>
+
+    <!-- Shop status toggle -->
+    <div class="mt-auto pt-3" style="border-top:1px solid #334155;">
+      <div class="d-flex align-items-center justify-content-between">
+        <span class="text-secondary small">Shop Status</span>
+        <div class="form-check form-switch mb-0">
+          <input class="form-check-input" type="checkbox" id="shopToggle" checked>
+          <label class="form-check-label text-success fw-semibold small" for="shopToggle" id="shopStatusLabel">Open</label>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Content ─────────────────────────────────────────── -->
+  <main class="dash-main">
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4 flex-wrap gap-2">
+      <div>
+        <h4 class="fw-bold mb-1">Welcome back, {{ current_user.name.split()[0] }}! 👋</h4>
+        <p class="text-muted small mb-0" id="dashDate"></p>
+      </div>
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="/catalog" class="btn btn-primary btn-sm rounded-pill px-3">
+          <i class="bi bi-plus-circle me-1"></i>Add Products from Catalog
+        </a>
+        <a href="/search" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+          <i class="bi bi-search me-1"></i>Search
+        </a>
+      </div>
+    </div>
+
+    <!-- ── KPI Cards ────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="kpi" style="border-left-color:#1a56db;">
+          <div class="kpi-icon" style="background:#dbeafe;color:#1a56db;"><i class="bi bi-box-seam"></i></div>
+          <div>
+            <div class="kpi-value text-dark">{{ stats.total_products | default(0) }}</div>
+            <div class="kpi-label">Total Products</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi" style="border-left-color:#f59e0b;">
+          <div class="kpi-icon" style="background:#fef3c7;color:#b45309;"><i class="bi bi-exclamation-triangle"></i></div>
+          <div>
+            <div class="kpi-value text-dark">{{ stats.low_stock | default(0) }}</div>
+            <div class="kpi-label">Low Stock</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi" style="border-left-color:#8b5cf6;">
+          <div class="kpi-icon" style="background:#ede9fe;color:#7c3aed;"><i class="bi bi-fire"></i></div>
+          <div>
+            <div class="kpi-value" style="font-size:1rem;font-weight:700;color:#0f172a;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              {{ stats.most_searched.product_name | default('—') | truncate(12, true, '…') }}
+            </div>
+            <div class="kpi-label">Most Searched</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="kpi" style="border-left-color:#16a34a;">
+          <div class="kpi-icon" style="background:#dcfce7;color:#16a34a;"><i class="bi bi-search"></i></div>
+          <div>
+            <div class="kpi-value text-dark">{{ stats.total_searches | default(0) }}</div>
+            <div class="kpi-label">Total Searches</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Charts Row 1 ─────────────────────────────────────── -->
+    <h6 class="fw-bold text-muted text-uppercase mb-3" id="analytics" style="font-size:.72rem;letter-spacing:.1em;">
+      <i class="bi bi-bar-chart-line me-1"></i> Analytics & Insights
+    </h6>
+    <div class="row g-3 mb-3">
+      <div class="col-lg-8">
+        <div class="chart-card">
+          <div class="chart-title">📈 Stock Level Trend — Last 30 Days</div>
+          <div class="chart-box"><canvas id="stockTrendChart"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-card">
+          <div class="chart-title">🥧 Product Category Mix</div>
+          <div class="chart-box"><canvas id="categoryChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Charts Row 2 ─────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">🔥 Top Products by Search Count</div>
+          <div class="chart-box-sm"><canvas id="topProductsChart"></canvas></div>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-card">
+          <div class="chart-title">📅 Monthly Search Trend</div>
+          <div class="chart-box-sm"><canvas id="searchTrendChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Price Alerts ──────────────────────────────────────── -->
+    {% if price_alerts %}
+    <div class="mb-4">
+      <h6 class="fw-bold text-uppercase mb-3" style="font-size:.72rem;letter-spacing:.1em;color:#64748b;">
+        <i class="bi bi-exclamation-triangle-fill text-warning me-1"></i> Price Alerts
+      </h6>
+      <div class="row g-3">
+        {% for alert in price_alerts %}
+        <div class="col-md-6">
+          <div class="alert-card">
+            <div>
+              <div class="fw-bold small">{{ alert.product_name }}</div>
+              <div class="text-muted" style="font-size:.8rem;">
+                Your price: <strong>₹{{ alert.price }}</strong> &nbsp;|&nbsp;
+                Market avg: <strong>₹{{ alert.avg_price | round(2) }}</strong>
+              </div>
+            </div>
+            <span class="badge rounded-pill" style="background:#fcd34d;color:#78350f;font-size:.8rem;">
+              {{ alert.deviation }}% off
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- ── AI Restock Predictions ────────────────────────────── -->
+    <div class="chart-card mb-4">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="chart-title mb-0">
+          🤖 AI Restock Predictions <span class="text-muted fw-normal" style="text-transform:none;">(Random Forest)</span>
+        </div>
+        <a href="/products" class="btn btn-sm btn-outline-primary rounded-pill px-3">Manage Stock</a>
+      </div>
+      <div class="table-responsive">
+        <table class="pred-table w-100">
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Qty</th>
+              <th>Days Left</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pred in predictions | default([]) %}
+            <tr>
+              <td class="fw-semibold">{{ pred.product_name }}</td>
+              <td>{{ pred.quantity }}</td>
+              <td>{{ pred.days_remaining | default(pred.days_left | default(0)) }} days</td>
+              <td>
+                {% if pred.alert_level == 'critical' %}
+                  <span class="badge bg-danger rounded-pill">🔴 Critical</span>
+                {% elif pred.alert_level == 'warning' %}
+                  <span class="badge bg-warning text-dark rounded-pill">🟡 Warning</span>
+                {% elif pred.alert_level == 'caution' %}
+                  <span class="badge bg-info text-white rounded-pill">🔵 Caution</span>
+                {% else %}
+                  <span class="badge bg-success rounded-pill">🟢 Healthy</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">
+                <i class="bi bi-robot d-block mb-1" style="font-size:1.5rem;"></i>
+                No predictions yet — add more products to train the model.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Set date ────────────────────────────────────────────────────
+document.getElementById('dashDate').textContent =
+  new Date().toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+// ── Shop status toggle ──────────────────────────────────────────
+const toggle = document.getElementById('shopToggle');
+const statusLabel = document.getElementById('shopStatusLabel');
+if (toggle) {
+  toggle.addEventListener('change', function() {
+    statusLabel.textContent = this.checked ? 'Open' : 'Closed';
+    statusLabel.style.color = this.checked ? '#16a34a' : '#ef4444';
+  });
+}
+
+// ── Chart defaults ──────────────────────────────────────────────
+Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+Chart.defaults.font.size   = 12;
+Chart.defaults.color       = '#64748b';
+Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15,23,42,.9)';
+Chart.defaults.plugins.tooltip.padding         = 10;
+Chart.defaults.plugins.tooltip.cornerRadius    = 8;
+
+const COLORS = ['#1a56db','#16a34a','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#14b8a6','#f97316'];
+
+// ── Helper: destroy existing chart on canvas before reinit ─────
+function makeChart(id, config) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const existing = Chart.getChart(canvas);
+  if (existing) existing.destroy();
+  return new Chart(canvas, config);
+}
+
+function showEmptyChart(canvasId, title, message, showButton = false) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const existing = Chart.getChart(canvas);
+  if (existing) existing.destroy();
+  const parent = canvas.parentElement;
+  if (!parent) return;
+  parent.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:1.5rem;">
+      <i class="bi bi-box-seam" style="font-size:2rem;margin-bottom:0.5rem;color:#cbd5e1;"></i>
+      <div style="font-weight:700;color:#64748b;font-size:0.9rem;margin-bottom:0.25rem;">${title}</div>
+      <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:${showButton ? '0.85rem' : '0'};max-width:260px;">${message}</div>
+      ${showButton ? '<a href="/catalog" class="btn btn-sm btn-primary rounded-pill px-3" style="font-size:0.8rem;font-weight:600;"><i class="bi bi-plus-circle me-1"></i>Add from Catalog</a>' : ''}
+    </div>
+  `;
+}
+
+// ── Fetch analytics data & render all charts ───────────────────
+fetch('/api/analytics')
+  .then(r => r.json())
+  .then(data => {
+    renderStockTrend(data.stock_trend);
+    renderCategoryPie(data.categories);
+    renderTopProducts(data.top_products);
+    renderSearchTrend(data.monthly_searches);
+  })
+  .catch(err => {
+    console.warn('Analytics API error:', err);
+    showEmptyChart('stockTrendChart', 'No Inventory Added Yet', 'Add products from the catalog to see 30-day stock trends.', true);
+    showEmptyChart('categoryChart', 'No Category Data', 'Your inventory category mix will appear here.');
+    showEmptyChart('topProductsChart', 'No Search Activity', 'Customer search demand will be displayed here.');
+  });
+
+function renderStockTrend(d) {
+  if (!d || !d.values || !d.values.length || d.values.every(v => v === 0)) {
+    showEmptyChart('stockTrendChart', 'No Inventory Added Yet', 'Add products from the catalog to track your stock level trends.', true);
+    return;
+  }
+  makeChart('stockTrendChart', {
+    type: 'line',
+    data: {
+      labels: d.labels,
+      datasets: [{
+        label: 'Stock Level',
+        data: d.values,
+        borderColor: '#1a56db',
+        backgroundColor: 'rgba(26,86,219,.08)',
+        borderWidth: 2.5,
+        tension: 0.4,
+        fill: true,
+        pointBackgroundColor: '#fff',
+        pointBorderColor: '#1a56db',
+        pointBorderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 7,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => `Stock: ${c.parsed.y} units` } }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color:'#f1f5f9' } },
+        x: { grid: { display: false } }
+      },
+      animation: { duration: 800, easing: 'easeOutQuart' }
+    }
+  });
+}
+
+function renderCategoryPie(d) {
+  if (!d || !d.values || !d.values.length || d.values.every(v => v === 0)) {
+    showEmptyChart('categoryChart', 'No Categories Listed', 'Categorized breakdown will appear once you add items.');
+    return;
+  }
+  makeChart('categoryChart', {
+    type: 'doughnut',
+    data: {
+      labels: d.labels,
+      datasets: [{
+        data: d.values,
+        backgroundColor: COLORS.slice(0, d.labels.length),
+        borderWidth: 2,
+        borderColor: '#fff',
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 12, usePointStyle: true, font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: c => {
+              const total = c.dataset.data.reduce((a,b) => a+b, 0);
+              return ` ${c.label}: ${c.parsed} (${Math.round(c.parsed/total*100)}%)`;
+            }
+          }
+        }
+      },
+      animation: { animateScale: true, duration: 800 }
+    }
+  });
+}
+
+function renderTopProducts(d) {
+  if (!d || !d.values || !d.values.length || d.values.every(v => v === 0)) {
+    showEmptyChart('topProductsChart', 'No Search Activity Yet', 'Customer search volume for your products will show here.');
+    return;
+  }
+  makeChart('topProductsChart', {
+    type: 'bar',
+    data: {
+      labels: d.labels,
+      datasets: [{
+        label: 'Searches',
+        data: d.values,
+        backgroundColor: COLORS.slice(0, d.labels.length),
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.parsed.x} searches` } }
+      },
+      scales: {
+        x: { beginAtZero: true, grid: { color:'#f1f5f9' } },
+        y: { grid: { display: false } }
+      },
+      animation: { duration: 800 }
+    }
+  });
+}
+
+function renderSearchTrend(d) {
+  if (!d || !d.labels || !d.labels.length) return;
+  makeChart('searchTrendChart', {
+    type: 'bar',
+    data: {
+      labels: d.labels,
+      datasets: [{
+        label: 'Searches',
+        data: d.values,
+        backgroundColor: 'rgba(22,163,74,.7)',
+        borderColor: '#16a34a',
+        borderWidth: 1.5,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: c => ` ${c.parsed.y} searches` } }
+      },
+      scales: {
+        y: { beginAtZero: true, grid: { color:'#f1f5f9' } },
+        x: { grid: { display: false } }
+      },
+      animation: { duration: 800 }
+    }
+  });
+}
+</script>
+{% endblock %}

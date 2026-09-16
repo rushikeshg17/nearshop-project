@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block title %}NearShop — Find Products Near You in Ballari{% endblock %}
+
+{% block content %}
+
+<!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
+<section class="hero-section">
+  <div class="container py-5 position-relative" style="z-index:2;">
+    <div class="text-center">
+
+      <div class="hero-badge mb-3">
+        <i class="bi bi-geo-alt-fill"></i>
+        Currently serving Ballari, Karnataka
+      </div>
+
+      <h1 class="display-4 fw-bold text-white mb-3" style="letter-spacing:-1px;">
+        Find Products<br>
+        <span style="color:#93c5fd;">Near You</span> Instantly
+      </h1>
+      <p class="text-white-50 mb-5 fs-5 mx-auto" style="max-width:520px;">
+        Search local shops before you visit. Compare prices, check stock, and get directions — all in one place.
+      </p>
+
+      <!-- Search Box -->
+      <div class="hero-search-box mx-auto mb-4" style="position:relative;">
+        <form action="/search" method="GET" class="d-flex w-100" id="heroSearchForm">
+          <input type="text" name="q" id="heroSearchInput"
+                 placeholder="Search bike chain, puncture kit, notebook…"
+                 autocomplete="off" class="flex-grow-1">
+          <select name="category">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit">
+            <i class="bi bi-search"></i> Search
+          </button>
+        </form>
+        <!-- Autocomplete dropdown -->
+        <div id="heroAutocomplete" style="
+          display:none; position:absolute; top:100%; left:0; right:0; z-index:9999;
+          background:#fff; border:1px solid #e2e8f0; border-top:none;
+          border-radius:0 0 12px 12px; box-shadow:0 12px 32px rgba(0,0,0,0.12);
+          max-height:240px; overflow-y:auto;">
+        </div>
+      </div>
+
+      <!-- Quick category chips -->
+      <div class="d-flex flex-wrap justify-content-center gap-2 mb-4">
+        {% set quick = [('bi-gear-wide-connected','Spare Parts','Vehicle Spare Parts'),
+                        ('bi-lightning-charge','Electrical','Electrical'),
+                        ('bi-tools','Hardware','Hardware'),
+                        ('bi-pencil','Stationery','Stationery'),
+                        ('bi-bag','Footwear','Footwear')] %}
+        {% for icon, label, cat in quick %}
+        <a href="/search?category={{ cat|urlencode }}"
+           class="d-inline-flex align-items-center gap-1 px-3 py-1 rounded-pill text-white"
+           style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);font-size:.82rem;font-weight:600;backdrop-filter:blur(8px);">
+          <i class="bi {{ icon }}"></i> {{ label }}
+        </a>
+        {% endfor %}
+      </div>
+
+      <!-- CTA buttons -->
+      <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a href="/register?tab=owner" class="btn btn-success btn-lg px-4 rounded-pill shadow">
+          <i class="bi bi-shop me-1"></i> Register Your Shop
+        </a>
+        <a href="/search" class="btn btn-outline-light btn-lg px-4 rounded-pill">
+          <i class="bi bi-compass me-1"></i> Explore All Products
+        </a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ STATS ══════════════════════════════ -->
+<section class="py-5 bg-white">
+  <div class="container">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="stat-card">
+          <span class="stat-icon">🏪</span>
+          <span class="stat-number text-primary" data-count="{{ shop_count }}">{{ shop_count }}</span>
+          <span class="stat-label">Local Shops Registered</span>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <span class="stat-icon">📦</span>
+          <span class="stat-number text-success" data-count="{{ product_count }}">{{ product_count }}</span>
+          <span class="stat-label">Products Listed</span>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="stat-card">
+          <span class="stat-icon">🔍</span>
+          <span class="stat-number text-warning" data-count="{{ search_count }}">{{ search_count }}</span>
+          <span class="stat-label">Searches Today</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ CATEGORIES ════════════════════════════ -->
+<section class="py-5" style="background:var(--bg);">
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="section-tag">Browse Categories</span>
+      <h2 class="fw-bold mt-2">Find What You Need</h2>
+      <p class="text-muted">9 product categories, all from local Ballari shops</p>
+    </div>
+
+    {% set cat_data = [
+      ('Vehicle Spare Parts', 'bi-gear-wide-connected', 'cat-spare', 'Engine oils, brake pads, tyres & more'),
+      ('Electrical',          'bi-lightning-charge-fill','cat-elec',  'Wires, switches, LED bulbs & MCBs'),
+      ('Hardware',            'bi-tools',               'cat-hard',  'Tools, fasteners, drills & adhesives'),
+      ('Plumbing',            'bi-droplet-fill',        'cat-plumb', 'PVC pipes, valves, taps & fittings'),
+      ('Footwear',            'bi-person-walking',      'cat-foot',  'Sandals, sports shoes & school footwear'),
+      ('Stationery',          'bi-pencil-fill',         'cat-stat',  'Notebooks, pens, compass & erasers'),
+      ('Books',               'bi-book-fill',           'cat-book',  'NCERT, SSLC, PUC & competitive exams'),
+      ('General Store',       'bi-bag-fill',            'cat-gen',   'Groceries, toiletries & daily needs'),
+    ] %}
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+      {% for name, icon, cls, desc in cat_data %}
+      <div class="col">
+        <a href="/search?category={{ name|urlencode }}" class="category-card-wrapper d-block h-100">
+          <div class="category-card">
+            <div class="cat-icon-wrap {{ cls }}">
+              <i class="bi {{ icon }}"></i>
+            </div>
+            <div class="cat-text">
+              <h6>{{ name }}</h6>
+              <small>{{ desc }}</small>
+            </div>
+            <i class="bi bi-chevron-right text-muted ms-auto"></i>
+          </div>
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════ FEATURED PRODUCTS ════════════════════════ -->
+<section class="py-5 bg-white">
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <span class="section-tag">Trending Now</span>
+        <h2 class="fw-bold mt-2 mb-0">Popular in Ballari</h2>
+      </div>
+      <a href="/search" class="btn btn-outline-primary rounded-pill px-4">
+        View All <i class="bi bi-arrow-right ms-1"></i>
+      </a>
+    </div>
+
+    <!-- Fake featured product cards -->
+    {% set featured = [
+      ('Bike Chain 428H', 'Vehicle Spare Parts', '₹185', 'Srinivas Auto Parts', '0.8 km', 'In Stock', '32', '#3b82f6'),
+      ('LED Bulb 9W', 'Electrical', '₹65', 'Venkateshwara Electricals', '1.2 km', 'In Stock', '120', '#f59e0b'),
+      ('Puncture Kit', 'Vehicle Spare Parts', '₹55', 'Maruti Spares', '0.5 km', 'Low Stock', '8', '#3b82f6'),
+      ('SSLC Maths Guide', 'Books', '₹220', 'Saraswati Books', '2.1 km', 'In Stock', '45', '#ef4444'),
+      ('PVC Pipe 1 inch', 'Plumbing', '₹48', 'Om Sai Plumbing', '1.8 km', 'In Stock', '200', '#06b6d4'),
+      ('Spiral Notebook A4', 'Stationery', '₹75', 'Sri Ram Traders', '1.0 km', 'In Stock', '80', '#10b981'),
+    ] %}
+
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+      {% for name, cat, price, shop, dist, stock, qty, color in featured %}
+      <div class="col">
+        <div class="bg-white rounded-4 border p-3 h-100 d-flex flex-column" style="box-shadow:var(--card-shadow);transition:var(--transition);"
+             onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='var(--card-shadow-hover)'"
+             onmouseout="this.style.transform='';this.style.boxShadow='var(--card-shadow)'">
+          <!-- Product image placeholder -->
+          <div class="rounded-3 mb-3 d-flex align-items-center justify-content-center"
+               style="height:130px;background:{{ color }}18;">
+            <i class="bi bi-box-seam" style="font-size:3rem;color:{{ color }};opacity:.6;"></i>
+          </div>
+          <span class="ns-pill mb-2" style="background:{{ color }}18;color:{{ color }};font-size:.72rem;">{{ cat }}</span>
+          <h6 class="fw-bold mb-1">{{ name }}</h6>
+          <p class="text-muted small mb-2"><i class="bi bi-shop me-1"></i>{{ shop }}</p>
+          <div class="d-flex align-items-center justify-content-between mt-auto">
+            <span class="fw-bold fs-5 text-success">{{ price }}</span>
+            <span class="badge {% if stock == 'In Stock' %}bg-success{% elif stock == 'Low Stock' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+              {{ stock }}
+            </span>
+          </div>
+          <div class="d-flex align-items-center justify-content-between mt-2">
+            <small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ dist }}</small>
+            <small class="text-muted">Qty: {{ qty }}</small>
+          </div>
+          <a href="/search?q={{ name|urlencode }}" class="btn btn-sm btn-primary rounded-pill mt-3 w-100">
+            <i class="bi bi-search me-1"></i>Find Near Me
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ HOW IT WORKS ══════════════════════════════ -->
+<section class="py-5" style="background:var(--bg);">
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="section-tag">Simple 3 Steps</span>
+      <h2 class="fw-bold mt-2">How NearShop Works</h2>
+    </div>
+
+    <div class="row g-4 align-items-start">
+      <div class="col-md-4 text-center how-step">
+        <div class="how-icon-wrap">
+          <i class="bi bi-search"></i>
+        </div>
+        <div class="how-num">1</div>
+        <h5 class="fw-bold mt-2">Search Product</h5>
+        <p class="text-muted small">Type what you need — our AI understands synonyms and similar terms automatically.</p>
+      </div>
+      <div class="col-md-4 text-center how-step">
+        <div class="how-icon-wrap" style="background:#dcfce7;color:#16a34a;">
+          <i class="bi bi-shop"></i>
+        </div>
+        <div class="how-num" style="background:var(--accent);">2</div>
+        <h5 class="fw-bold mt-2">Compare Shops</h5>
+        <p class="text-muted small">See prices, distances, and real-time stock levels from all nearby shops on a map.</p>
+      </div>
+      <div class="col-md-4 text-center how-step">
+        <div class="how-icon-wrap" style="background:#fef3c7;color:#b45309;">
+          <i class="bi bi-bag-check"></i>
+        </div>
+        <div class="how-num" style="background:var(--warning);">3</div>
+        <h5 class="fw-bold mt-2">Visit & Buy</h5>
+        <p class="text-muted small">Get directions, walk in confidently, and support your local Ballari businesses.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ TESTIMONIALS (Fake) ════════════════════════ -->
+<section class="py-5 bg-white">
+  <div class="container">
+    <div class="text-center mb-5">
+      <span class="section-tag">Trusted by Locals</span>
+      <h2 class="fw-bold mt-2">What People Are Saying</h2>
+    </div>
+    <div class="row g-4">
+      {% set reviews = [
+        ('Ravi Kumar', 'Bike Owner', '⭐⭐⭐⭐⭐', 'Found the exact puncture kit I needed at Maruti Spares within 2 minutes. Saved me so much time!'),
+        ('Priya Lakshmi', 'Student, Ballari', '⭐⭐⭐⭐⭐', 'I use NearShop every time I need stationery. Always know which shop has it before I leave home.'),
+        ('Suresh Gowda', 'Shop Owner', '⭐⭐⭐⭐⭐', 'My shop visibility increased a lot after listing. Getting more walk-in customers than before.'),
+      ] %}
+      {% for name, role, stars, text in reviews %}
+      <div class="col-md-4">
+        <div class="p-4 rounded-4 h-100" style="background:var(--bg);border:1px solid var(--border);">
+          <div class="mb-2" style="font-size:1.1rem;">{{ stars }}</div>
+          <p class="text-muted small mb-3">"{{ text }}"</p>
+          <div class="d-flex align-items-center gap-2 mt-auto">
+            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold"
+                 style="width:38px;height:38px;font-size:.9rem;">{{ name[0] }}</div>
+            <div>
+              <div class="fw-bold small">{{ name }}</div>
+              <div class="text-muted" style="font-size:.75rem;">{{ role }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════ CTA BANNER ════════════════════════════════ -->
+<section class="py-5" style="background:var(--bg);">
+  <div class="container">
+    <div class="cta-section">
+      <h2 class="fw-bold text-white mb-3">Are you a shop owner in Ballari?</h2>
+      <p class="text-white mb-4" style="opacity:.85;max-width:500px;margin:0 auto 1.5rem;">
+        List your products for free and let thousands of local customers discover your shop before they step out.
+      </p>
+      <div class="d-flex justify-content-center gap-3 flex-wrap">
+        <a href="/register?tab=owner" class="btn btn-light btn-lg px-5 rounded-pill fw-bold text-primary">
+          <i class="bi bi-shop me-2"></i>Register Free
+        </a>
+        <a href="/login" class="btn btn-outline-light btn-lg px-5 rounded-pill fw-bold">
+          Already have an account?
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Counter animation
+document.querySelectorAll('[data-count]').forEach(el => {
+  const target = parseInt(el.dataset.count) || 0;
+  let count = 0;
+  const step = Math.max(1, Math.floor(target / 60));
+  const timer = setInterval(() => {
+    count = Math.min(count + step, target);
+    el.textContent = count.toLocaleString('en-IN');
+    if (count >= target) clearInterval(timer);
+  }, 20);
+});
+
+// Hero autocomplete
+const heroInput = document.getElementById('heroSearchInput');
+const heroAC    = document.getElementById('heroAutocomplete');
+let acTimer;
+if (heroInput) {
+  heroInput.addEventListener('input', function() {
+    clearTimeout(acTimer);
+    const q = this.value.trim();
+    if (q.length < 2) { heroAC.style.display='none'; return; }
+    acTimer = setTimeout(() => {
+      fetch(`/api/autocomplete?q=${encodeURIComponent(q)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (!data.length) { heroAC.style.display='none'; return; }
+          heroAC.innerHTML = data.map(s =>
+            `<div class="ac-item" onclick="heroInput.value='${s}';heroAC.style.display='none';">
+               <i class="bi bi-search text-muted"></i> ${s}
+             </div>`
+          ).join('');
+          heroAC.style.display='block';
+        });
+    }, 250);
+  });
+  document.addEventListener('click', e => {
+    if (!heroAC.contains(e.target) && e.target !== heroInput)
+      heroAC.style.display='none';
+  });
+}
+</script>
+{% endblock %}

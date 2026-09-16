@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+{% block title %}My Products — NearShop{% endblock %}
+
+{% block extra_head %}
+<style>
+body { background: #f1f5f9; }
+
+/* Sidebar */
+.dash-sidebar {
+  width:220px; flex-shrink:0;
+  background:linear-gradient(180deg,#0f172a,#1e293b);
+  display:flex; flex-direction:column; padding:1.25rem 1rem;
+  position:sticky; top:60px; height:calc(100vh - 60px); overflow-y:auto;
+}
+.dash-sidebar .brand { color:#fff; font-size:1rem; font-weight:800; margin-bottom:.2rem; }
+.dash-sidebar .shop-sub { color:#475569; font-size:.75rem; margin-bottom:1.25rem; }
+.dash-nav a {
+  display:flex; align-items:center; gap:.55rem;
+  padding:.6rem .9rem; border-radius:8px;
+  color:#94a3b8; font-size:.85rem; font-weight:500;
+  text-decoration:none; transition:all .2s; margin-bottom:2px;
+}
+.dash-nav a:hover  { background:rgba(255,255,255,.08); color:#fff; }
+.dash-nav a.active { background:#1a56db; color:#fff; box-shadow:0 4px 12px rgba(26,86,219,.4); }
+.dash-divider { border-top:1px solid #334155; margin:.85rem 0; }
+
+/* Main */
+.prod-main { flex:1; padding:1.5rem; overflow:auto; min-width:0; }
+
+/* Banner CTA */
+.catalog-banner {
+  background: linear-gradient(120deg, #1a56db 0%, #4f46e5 100%);
+  border-radius: 14px; padding: 1.5rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.catalog-banner h5 { color:#fff; font-weight:800; margin:0 0 .25rem; }
+.catalog-banner p  { color:rgba(255,255,255,.75); font-size:.85rem; margin:0; }
+.btn-catalog {
+  background:#fff; color:#1a56db; border:none;
+  padding:.65rem 1.5rem; border-radius:10px; font-weight:800;
+  font-size:.9rem; cursor:pointer; white-space:nowrap;
+  text-decoration:none; display:inline-flex; align-items:center; gap:.4rem;
+  transition:all .2s;
+}
+.btn-catalog:hover { background:#eff6ff; transform:translateY(-1px); color:#1a56db; }
+
+/* Product table card */
+.prod-card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.06); overflow:hidden; }
+.prod-card-header { padding:1rem 1.25rem; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+.tbl-search { flex:1; min-width:180px; padding:.5rem .9rem; border:1.5px solid #e2e8f0; border-radius:8px; font-size:.85rem; outline:none; }
+.tbl-search:focus { border-color:#1a56db; }
+.cat-select { padding:.5rem .75rem; border:1.5px solid #e2e8f0; border-radius:8px; font-size:.85rem; outline:none; color:#475569; }
+
+/* Table */
+.ns-table { width:100%; border-collapse:collapse; }
+.ns-table th { padding:.65rem 1rem; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#94a3b8; border-bottom:2px solid #f1f5f9; background:#fff; white-space:nowrap; }
+.ns-table td { padding:.75rem 1rem; border-bottom:1px solid #f8fafc; font-size:.875rem; vertical-align:middle; }
+.ns-table tr:last-child td { border-bottom:none; }
+.ns-table tr:hover td { background:#f8fafc; }
+.prod-thumb { width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0; }
+.stock-badge { padding:3px 10px; border-radius:99px; font-size:.72rem; font-weight:700; }
+.stock-in  { background:#dcfce7; color:#15803d; }
+.stock-low { background:#fef3c7; color:#b45309; }
+.stock-out { background:#fee2e2; color:#dc2626; }
+.cat-badge { background:#f1f5f9; color:#475569; padding:3px 10px; border-radius:6px; font-size:.75rem; font-weight:600; }
+.action-btn { background:none; border:1.5px solid #e2e8f0; border-radius:7px; padding:.3rem .55rem; cursor:pointer; transition:all .18s; font-size:.8rem; }
+.action-btn:hover.edit  { border-color:#93c5fd; background:#eff6ff; color:#1a56db; }
+.action-btn:hover.del   { border-color:#fca5a5; background:#fef2f2; color:#dc2626; }
+.qty-inline { cursor:pointer; padding:3px 10px; border-radius:6px; font-weight:700; background:#f8fafc; display:inline-block; }
+.qty-inline:hover { background:#eff6ff; color:#1a56db; }
+
+/* Empty state */
+.empty-table { text-align:center; padding:4rem 1rem; color:#94a3b8; }
+.empty-table i { font-size:3rem; display:block; margin-bottom:1rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:flex;min-height:calc(100vh - 60px);">
+
+  <!-- ── Sidebar ── -->
+  <aside class="dash-sidebar d-none d-md-flex flex-column">
+    <div class="brand"><i class="bi bi-geo-alt-fill text-primary"></i> NearShop</div>
+    <div class="shop-sub">{{ current_user.shop_name | default('My Shop') }}</div>
+    <div class="d-flex align-items-center gap-2 mb-4 p-2 rounded-3" style="background:rgba(255,255,255,.06);">
+      <div class="d-flex align-items-center justify-content-center rounded-circle text-white fw-bold"
+           style="width:32px;height:32px;background:#1a56db;font-size:.8rem;flex-shrink:0;">
+        {{ current_user.name[0] | upper }}
+      </div>
+      <div style="overflow:hidden;">
+        <div class="text-white fw-semibold" style="font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ current_user.name }}</div>
+        <div class="text-secondary" style="font-size:.7rem;">Shop Owner</div>
+      </div>
+    </div>
+    <nav class="dash-nav">
+      <a href="/dashboard"><i class="bi bi-speedometer2"></i> Dashboard</a>
+      <a href="/products" class="active"><i class="bi bi-box-seam"></i> My Products</a>
+      <a href="/catalog"><i class="bi bi-grid-3x3-gap"></i> Browse Catalog</a>
+      <a href="/search"><i class="bi bi-search"></i> Search</a>
+      <div class="dash-divider"></div>
+      <a href="/profile"><i class="bi bi-person-circle"></i> Profile</a>
+      <a href="/logout" style="color:#f87171;"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    </nav>
+  </aside>
+
+  <!-- ── Main ── -->
+  <div class="prod-main">
+
+    <!-- Page header -->
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <div>
+        <h4 class="fw-bold mb-0">My Products</h4>
+        <p class="text-muted small mb-0">{{ products | length }} product(s) in your inventory</p>
+      </div>
+    </div>
+
+    <!-- Browse Catalog Banner -->
+    <div class="catalog-banner">
+      <div>
+        <h5><i class="bi bi-grid-3x3-gap me-2"></i>Add Products from Catalog</h5>
+        <p>Pick your shop type → Browse all items → Select what you have → Done! No typing needed.</p>
+      </div>
+      <a href="/catalog" class="btn-catalog">
+        <i class="bi bi-plus-circle-fill"></i> Browse & Add Products
+      </a>
+    </div>
+
+    <!-- Product Table -->
+    <div class="prod-card">
+      <div class="prod-card-header">
+        <input type="text" class="tbl-search" id="tblSearch" placeholder="🔍  Search products…">
+        <select class="cat-select" id="catFilter">
+          <option value="">All Categories</option>
+          {% for cat in categories %}
+          <option value="{{ cat }}">{{ cat }}</option>
+          {% endfor %}
+        </select>
+        <div style="margin-left:auto;color:#64748b;font-size:.8rem;" id="rowCount"></div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="ns-table" id="prodTable">
+          <thead>
+            <tr>
+              <th style="padding-left:1.25rem;">#</th>
+              <th>Product</th>
+              <th>Category</th>
+              <th>Brand</th>
+              <th>Price</th>
+              <th>Qty</th>
+              <th>Status</th>
+              <th style="text-align:right;padding-right:1.25rem;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="prodBody">
+            {% for p in products %}
+            <tr data-cat="{{ p.category }}" data-name="{{ p.product_name | lower }}">
+              <td style="padding-left:1.25rem;color:#94a3b8;font-weight:700;">{{ loop.index }}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:.65rem;">
+                  <img src="/static/images/products/{{ p.image }}"
+                       onerror="this.src='/static/images/default.png'"
+                       alt="{{ p.product_name }}" class="prod-thumb">
+                  <span class="fw-semibold" style="color:#0f172a;">{{ p.product_name }}</span>
+                </div>
+              </td>
+              <td><span class="cat-badge">{{ p.category }}</span></td>
+              <td style="color:#64748b;">{{ p.brand or '—' }}</td>
+              <td><strong style="color:#1a56db;">₹{{ p.price }}</strong></td>
+              <td>
+                <span class="qty-inline" title="Click to edit"
+                      onclick="inlineEditQty(this, {{ p.id }}, {{ p.quantity }})">
+                  {{ p.quantity }}
+                </span>
+              </td>
+              <td>
+                {% if p.quantity == 0 %}
+                  <span class="stock-badge stock-out">Out of Stock</span>
+                {% elif p.quantity <= 10 %}
+                  <span class="stock-badge stock-low">Low Stock</span>
+                {% else %}
+                  <span class="stock-badge stock-in">In Stock</span>
+                {% endif %}
+              </td>
+              <td style="text-align:right;padding-right:1.25rem;">
+                <button class="action-btn edit me-1"
+                        data-id="{{ p.id }}"
+                        data-name="{{ p.product_name }}"
+                        data-cat="{{ p.category }}"
+                        data-price="{{ p.price }}"
+                        data-qty="{{ p.quantity }}"
+                        data-brand="{{ p.brand or '' }}"
+                        data-desc="{{ p.description or '' }}"
+                        onclick="openEdit(this)"
+                        title="Edit">
+                  ✏️
+                </button>
+                <button class="action-btn del"
+                        data-id="{{ p.id }}"
+                        data-name="{{ p.product_name }}"
+                        onclick="openDelete(this)"
+                        title="Delete">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr id="emptyRow">
+              <td colspan="8">
+                <div class="empty-table">
+                  <i class="bi bi-box-seam"></i>
+                  <div class="fw-bold mb-1">No products yet</div>
+                  <div class="small mb-3">Use the catalog to add products to your shop — no typing required!</div>
+                  <a href="/catalog" class="btn-catalog" style="display:inline-flex;">
+                    <i class="bi bi-plus-circle-fill"></i> Browse Catalog
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Edit Modal ── -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow rounded-4">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold">Edit Product</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm" method="POST" enctype="multipart/form-data">
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Product Name</label>
+            <input type="text" name="product_name" id="eN" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Category</label>
+            <select name="category" id="eC" class="form-select">
+              {% for cat in categories %}
+              <option value="{{ cat }}">{{ cat }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row mb-3 g-2">
+            <div class="col">
+              <label class="form-label small fw-bold">Price (₹)</label>
+              <input type="number" step="0.01" name="price" id="eP" class="form-control" required>
+            </div>
+            <div class="col">
+              <label class="form-label small fw-bold">Quantity</label>
+              <input type="number" name="quantity" id="eQ" class="form-control" required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Brand</label>
+            <input type="text" name="brand" id="eB" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small fw-bold">Description</label>
+            <textarea name="description" id="eD" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary rounded-pill fw-bold">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Modal ── -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content border-0 shadow rounded-4 text-center p-3">
+      <div class="modal-body">
+        <div style="font-size:2.5rem;">🗑️</div>
+        <h5 class="fw-bold mt-2">Delete Product?</h5>
+        <p class="text-muted small mb-4">
+          Delete <strong id="delName"></strong>? This cannot be undone.
+        </p>
+        <form id="delForm" method="POST">
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-light rounded-pill flex-fill" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-danger rounded-pill flex-fill">Delete</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ── Table filtering ──────────────────────────────────────────────
+const rows = [...document.querySelectorAll('#prodBody tr[data-name]')];
+
+function filterTable() {
+  const q   = document.getElementById('tblSearch').value.toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  let vis   = 0;
+  rows.forEach(r => {
+    const show = r.dataset.name.includes(q) && (!cat || r.dataset.cat === cat);
+    r.style.display = show ? '' : 'none';
+    if (show) vis++;
+  });
+  document.getElementById('rowCount').textContent = vis + ' item(s)';
+}
+
+document.getElementById('tblSearch').addEventListener('input', filterTable);
+document.getElementById('catFilter').addEventListener('change', filterTable);
+filterTable();
+
+// ── Edit modal ───────────────────────────────────────────────────
+function openEdit(btn) {
+  const d = btn.dataset;
+  document.getElementById('editForm').action = `/api/products/${d.id}`;
+  document.getElementById('eN').value = d.name;
+  document.getElementById('eC').value = d.cat;
+  document.getElementById('eP').value = d.price;
+  document.getElementById('eQ').value = d.qty;
+  document.getElementById('eB').value = d.brand || '';
+  document.getElementById('eD').value = d.desc  || '';
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+// ── Delete modal ─────────────────────────────────────────────────
+function openDelete(btn) {
+  document.getElementById('delName').textContent = btn.dataset.name;
+  document.getElementById('delForm').action = `/api/products/${btn.dataset.id}/delete`;
+  new bootstrap.Modal(document.getElementById('delModal')).show();
+}
+
+// ── Inline qty edit ──────────────────────────────────────────────
+function inlineEditQty(span, productId, currentQty) {
+  const input = document.createElement('input');
+  input.type  = 'number';
+  input.value = currentQty;
+  input.min   = 0;
+  input.style.cssText = 'width:70px;padding:3px 8px;border:1.5px solid #1a56db;border-radius:6px;font-weight:700;font-size:.875rem;outline:none;';
+
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+
+  const finish = async () => {
+    const qty = parseInt(input.value);
+    if (!isNaN(qty) && qty !== currentQty) {
+      const res  = await fetch(`/api/products/${productId}`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({quantity: qty})
+      });
+      const data = await res.json();
+      if (data.success) currentQty = qty;
+    }
+    const newSpan = document.createElement('span');
+    newSpan.className = 'qty-inline';
+    newSpan.title = 'Click to edit';
+    newSpan.textContent = currentQty;
+    newSpan.onclick = () => inlineEditQty(newSpan, productId, currentQty);
+    input.replaceWith(newSpan);
+  };
+
+  input.addEventListener('blur', finish);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = currentQty; input.blur(); } });
+}
+</script>
+{% endblock %}
