@@ -41,12 +41,23 @@ def train_model():
     return model
 
 
+_MODEL = None
+
+
 def load_model():
-    """Load model from disk, train if not exists."""
+    """Load model from disk or cache, train if not exists."""
+    global _MODEL
+    if _MODEL is not None:
+        return _MODEL
     if os.path.exists(MODEL_PATH):
-        with open(MODEL_PATH, 'rb') as f:
-            return pickle.load(f)
-    return train_model()
+        try:
+            with open(MODEL_PATH, 'rb') as f:
+                _MODEL = pickle.load(f)
+                return _MODEL
+        except Exception as e:
+            print(f"Error loading Isolation Forest: {e}")
+    _MODEL = train_model()
+    return _MODEL
 
 
 def check_price_anomaly(price: float, similar_prices: list) -> dict:

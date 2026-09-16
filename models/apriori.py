@@ -73,11 +73,21 @@ def train_model():
         return None
 
 
+_RULES = None
+
+
 def load_rules():
-    """Load rules from disk."""
+    """Load rules from disk or memory cache."""
+    global _RULES
+    if _RULES is not None:
+        return _RULES
     if os.path.exists(RULES_PATH):
-        with open(RULES_PATH, 'rb') as f:
-            return pickle.load(f)
+        try:
+            with open(RULES_PATH, 'rb') as f:
+                _RULES = pickle.load(f)
+                return _RULES
+        except Exception as e:
+            print(f"Error loading Apriori rules: {e}")
     return None
 
 

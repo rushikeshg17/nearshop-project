@@ -116,11 +116,22 @@ def train_model():
     return model
 
 
+_MODEL = None
+
+
 def load_model():
-    """Load model from disk, train if not exists."""
+    """Load model from disk or cache, train if not exists."""
+    global _MODEL
+    if _MODEL is not None:
+        return _MODEL
     if os.path.exists(MODEL_PATH):
-        return Word2Vec.load(MODEL_PATH)
-    return train_model()
+        try:
+            _MODEL = Word2Vec.load(MODEL_PATH)
+            return _MODEL
+        except Exception as e:
+            print(f"Error loading Word2Vec: {e}")
+    _MODEL = train_model()
+    return _MODEL
 
 
 def get_similar_terms(query: str, topn: int = 10) -> list:
@@ -129,6 +140,8 @@ def get_similar_terms(query: str, topn: int = 10) -> list:
     Used to expand search queries.
     """
     model = load_model()
+    if model is None or not hasattr(model, 'wv'):
+        return query.lower().split()
     tokens = simple_preprocess(query)
     similar_terms = set(tokens)
     

@@ -59,3 +59,9 @@ CREATE TABLE IF NOT EXISTS price_history (
     date DATE DEFAULT (date('now')),
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_products_shop_id ON products(shop_id);
+CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
+CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);
+CREATE INDEX IF NOT EXISTS idx_shops_owner_id ON shops(owner_id);
+CREATE INDEX IF NOT EXISTS idx_price_history_product ON price_history(product_id);
