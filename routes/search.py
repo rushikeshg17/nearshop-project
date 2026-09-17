@@ -50,6 +50,8 @@ def search():
     params = []
     where_clauses = ['p.quantity > 0']
 
+    shop_id = request.args.get('shop_id', type=int)
+
     # 1. Query with Word2Vec expansion
     if query:
         try:
@@ -60,17 +62,22 @@ def search():
         expanded_terms = list(set(expanded_terms + query.lower().split()))
 
         like_conditions = ' OR '.join(
-            ['LOWER(p.product_name) LIKE ? OR LOWER(p.description) LIKE ? OR LOWER(p.brand) LIKE ?']
+            ['(LOWER(p.product_name) LIKE ? OR LOWER(p.description) LIKE ? OR LOWER(p.brand) LIKE ? OR LOWER(s.shop_name) LIKE ?)']
             * len(expanded_terms)
         )
         for term in expanded_terms:
-            params.extend([f'%{term}%', f'%{term}%', f'%{term}%'])
+            params.extend([f'%{term}%', f'%{term}%', f'%{term}%', f'%{term}%'])
         where_clauses.append(f'({like_conditions})')
 
     # 2. Category filter
     if category:
         where_clauses.append('p.category = ?')
         params.append(category)
+
+    # 3. Specific Shop filter
+    if shop_id:
+        where_clauses.append('p.shop_id = ?')
+        params.append(shop_id)
 
     # 3. Price filter
     where_clauses.append('p.price BETWEEN ? AND ?')
@@ -143,6 +150,34 @@ def search():
         })
     shops_map = list(seen_shops.values())
 
+    # ── Matching shops by name (shows new shops even if 0 products) ───
+    matching_shops = []
+    if query:
+        s_rows = db.execute(
+            '''SELECT s.*, 
+                      (SELECT COUNT(*) FROM products p WHERE p.shop_id = s.id AND p.quantity > 0) as product_count
+               FROM shops s
+               WHERE LOWER(s.shop_name) LIKE ? OR LOWER(s.address) LIKE ?
+               LIMIT 5''',
+            (f'%{query.lower()}%', f'%{query.lower()}%')
+        ).fetchall()
+        for s in s_rows:
+            dist = haversine(user_lat, user_lng, s['latitude'], s['longitude'])
+            sd = dict(s)
+            sd['distance_km'] = round(dist, 2)
+            matching_shops.append(sd)
+            if s['id'] not in seen_shops:
+                shops_map.append({
+                    'id': s['id'],
+                    'name': s['shop_name'],
+                    'address': s['address'],
+                    'lat': s['latitude'],
+                    'lng': s['longitude'],
+                    'phone': s['phone'],
+                    'category': s['category'],
+                    'products': []
+                })
+
     # ── Apriori recommendations ───────────────────────────────────────
     rec_target = query or (category if category else (results[0]['product_name'] if results else ''))
     if rec_target:
@@ -158,6 +193,7 @@ def search():
                            query=query,
                            results=results,
                            shops_map=shops_map,
+                           matching_shops=matching_shops,
                            recommendations=recommendations,
                            categories=Config.CATEGORIES,
                            category_filter=category,
@@ -281,3 +317,56 @@ def autocomplete():
         pass
 
     return jsonify(list(dict.fromkeys(suggestions))[:10])
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# All Shops Directory & Map Route
+# ──────────────────────────────────────────────────────────────────────────────
+
+@search_bp.route('/shops')
+def shops():
+    query = request.args.get('q', '').strip()
+    category = request.args.get('category', '').strip()
+    user_lat = request.args.get('lat', Config.DEFAULT_LAT, type=float)
+    user_lng = request.args.get('lng', Config.DEFAULT_LNG, type=float)
+
+    db = get_db()
+    params = []
+    where_clauses = []
+
+    if query:
+        where_clauses.append('(LOWER(s.shop_name) LIKE ? OR LOWER(s.address) LIKE ?)')
+        params.extend([f'%{query.lower()}%', f'%{query.lower()}%'])
+    if category:
+        where_clauses.append('s.category = ?')
+        params.append(category)
+
+    where_sql = ('WHERE ' + ' AND '.join(where_clauses)) if where_clauses else ''
+
+    sql = f'''
+        SELECT s.*, 
+               (SELECT COUNT(*) FROM products p WHERE p.shop_id = s.id AND p.quantity > 0) as product_count
+        FROM shops s
+        {where_sql}
+        ORDER BY s.id DESC
+    '''
+    rows = db.execute(sql, params).fetchall()
+    db.close()
+
+    shops_list = []
+    for row in rows:
+        r = dict(row)
+        dist = haversine(user_lat, user_lng, r['latitude'], r['longitude'])
+        r['distance_km'] = round(dist, 2)
+        shops_list.append(r)
+
+    # Sort by distance
+    shops_list.sort(key=lambda x: x['distance_km'])
+
+    return render_template('shops.html',
+                           shops=shops_list,
+                           query=query,
+                           category_filter=category,
+                           categories=Config.CATEGORIES,
+                           default_lat=Config.DEFAULT_LAT,
+                           default_lng=Config.DEFAULT_LNG)

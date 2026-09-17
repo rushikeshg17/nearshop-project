@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}Browse Local Shops in Ballari — NearShop{% endblock %}
+
+{% block extra_head %}
+<style>
+  .shop-card {
+    transition: all .2s ease;
+    border-left: 4px solid transparent;
+    cursor: pointer;
+    background: #fff;
+    border-radius: 0.85rem;
+    border: 1px solid var(--border);
+    box-shadow: var(--card-shadow);
+  }
+  .shop-card:hover {
+    border-left-color: var(--primary);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08) !important;
+  }
+  .shop-card.highlighted {
+    border-left-color: var(--accent);
+    background: #f0fdf4 !important;
+  }
+  #shopsMap {
+    height: calc(100vh - 140px);
+    min-height: 520px;
+    border-radius: 1rem;
+    overflow: hidden;
+    position: sticky;
+    top: 75px;
+  }
+  .shop-topbar {
+    background: linear-gradient(135deg, #1e40af, #4338ca);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Top Filter Bar ─────────────────────────────────────────────── -->
+<div class="shop-topbar py-4 text-white">
+  <div class="container">
+    <div class="row align-items-center justify-content-between g-3">
+      <div class="col-lg-6">
+        <h3 class="fw-bold mb-1"><i class="bi bi-shop me-2"></i> Local Shops Directory</h3>
+        <p class="mb-0 text-white-50 small">
+          Explore all registered physical stores across Ballari, check their live inventory, and get contact details.
+        </p>
+      </div>
+      <div class="col-lg-6">
+        <form action="/shops" method="GET" class="d-flex gap-2">
+          <input type="text" name="q" value="{{ query }}" class="form-control rounded-pill px-3 shadow-sm border-0"
+                 placeholder="Search by shop name or location…">
+          <select name="category" class="form-select rounded-pill px-3 shadow-sm border-0" style="max-width:180px;">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}" {% if category_filter == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-dark rounded-pill px-4 fw-semibold shadow-sm">
+            <i class="bi bi-search"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Category Pills -->
+    <div class="d-flex gap-2 flex-wrap mt-3">
+      <a href="/shops" class="badge rounded-pill text-decoration-none {% if not category_filter %}bg-white text-primary{% else %}bg-white bg-opacity-25 text-white{% endif %} px-3 py-2">
+        All Shops ({{ shops|length }})
+      </a>
+      {% for cat in categories %}
+      <a href="/shops?category={{ cat|urlencode }}{% if query %}&q={{ query|urlencode }}{% endif %}"
+         class="badge rounded-pill text-decoration-none {% if category_filter == cat %}bg-white text-primary{% else %}bg-white bg-opacity-25 text-white{% endif %} px-3 py-2">
+        {{ cat }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- ── Main Content: List + Map ────────────────────────────────────── -->
+<div class="bg-light py-4">
+  <div class="container-fluid px-lg-4">
+    <div class="row g-3">
+
+      <!-- LEFT: Shop List -->
+      <div class="col-lg-6">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <span class="text-muted small fw-semibold">
+            Showing <span class="text-dark fw-bold">{{ shops|length }}</span> shops in Ballari
+          </span>
+          {% if query or category_filter %}
+          <a href="/shops" class="btn btn-sm btn-outline-secondary rounded-pill">Clear Filters</a>
+          {% endif %}
+        </div>
+
+        {% if not shops %}
+        <div class="card p-5 text-center border-0 shadow-sm rounded-4">
+          <div class="display-1 text-muted mb-3">🏪</div>
+          <h5>No shops found matching your search</h5>
+          <p class="text-muted small">Try searching with a different name or browse all categories.</p>
+          <div><a href="/shops" class="btn btn-primary rounded-pill px-4">View All Shops</a></div>
+        </div>
+        {% else %}
+        <div class="d-flex flex-column gap-3" style="max-height: calc(100vh - 180px); overflow-y: auto; padding-right: 6px;">
+          {% for s in shops %}
+          <div class="shop-card p-3" id="card-shop-{{ s.id }}" onclick="focusShop({{ s.id }}, {{ s.latitude }}, {{ s.longitude }})">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div>
+                <span class="badge bg-primary bg-opacity-10 text-primary mb-1" style="font-size:0.75rem;">
+                  {{ s.category }}
+                </span>
+                <h5 class="fw-bold mb-0 text-dark">{{ s.shop_name }}</h5>
+              </div>
+              <div class="text-end">
+                {% if s.product_count > 0 %}
+                <span class="badge bg-success bg-opacity-10 text-success fw-bold">
+                  <i class="bi bi-box-seam me-1"></i> {{ s.product_count }} items
+                </span>
+                {% else %}
+                <span class="badge bg-warning bg-opacity-15 text-dark fw-semibold">
+                  <i class="bi bi-stars me-1"></i> Newly Registered
+                </span>
+                {% endif %}
+              </div>
+            </div>
+
+            <p class="text-muted small mb-2 d-flex align-items-center gap-1">
+              <i class="bi bi-geo-alt text-danger"></i> {{ s.address }}
+              {% if s.distance_km is defined %}
+              <span class="badge bg-light text-secondary border ms-auto">{{ s.distance_km }} km away</span>
+              {% endif %}
+            </p>
+
+            <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+              <div class="small text-muted">
+                {% if s.phone %}
+                <i class="bi bi-telephone me-1 text-primary"></i> <a href="tel:{{ s.phone }}" class="text-decoration-none text-dark">{{ s.phone }}</a>
+                {% else %}
+                <span class="text-muted"><i class="bi bi-clock me-1 text-success"></i> Open Today</span>
+                {% endif %}
+              </div>
+
+              <div>
+                {% if s.product_count > 0 %}
+                <a href="/search?shop_id={{ s.id }}" class="btn btn-sm btn-primary rounded-pill px-3">
+                  <i class="bi bi-eye me-1"></i> View Products
+                </a>
+                {% else %}
+                <span class="btn btn-sm btn-outline-secondary rounded-pill px-3 disabled">
+                  Inventory Coming Soon
+                </span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- RIGHT: Interactive Map -->
+      <div class="col-lg-6">
+        <div id="shopsMap" class="shadow-sm"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  const defaultLat = {{ default_lat }};
+  const defaultLng = {{ default_lng }};
+  const shopsData = {{ shops | tojson }};
+
+  // Initialize map
+  const map = L.map('shopsMap').setView([defaultLat, defaultLng], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  const markers = {};
+
+  // Custom Icon
+  function createIcon(hasProducts) {
+    return L.divIcon({
+      className: 'custom-map-marker',
+      html: `<div style="
+        background: ${hasProducts ? '#2563eb' : '#f59e0b'};
+        color: #fff;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        border: 2px solid #fff;
+      ">🏪</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -18]
+    });
+  }
+
+  // Plot shops
+  const group = L.featureGroup();
+  shopsData.forEach(s => {
+    if (s.latitude && s.longitude) {
+      const hasProds = s.product_count > 0;
+      const marker = L.marker([s.latitude, s.longitude], {
+        icon: createIcon(hasProds)
+      }).addTo(map);
+
+      const popupContent = `
+        <div style="font-family: sans-serif; min-width: 200px;">
+          <h6 style="margin: 0 0 4px; font-weight: bold; color: #1e293b;">${s.shop_name}</h6>
+          <span style="display:inline-block; font-size:11px; font-weight:600; background:#e0e7ff; color:#3730a3; padding:2px 8px; border-radius:12px; margin-bottom:6px;">
+            ${s.category}
+          </span>
+          <p style="margin:0 0 6px; font-size:12px; color:#64748b;">${s.address}</p>
+          ${s.phone ? `<p style="margin:0 0 8px; font-size:12px;">📞 <a href="tel:${s.phone}">${s.phone}</a></p>` : ''}
+          ${hasProds ? 
+            `<a href="/search?shop_id=${s.id}" style="display:block; text-align:center; background:#2563eb; color:#fff; text-decoration:none; padding:5px 12px; border-radius:6px; font-size:12px; font-weight:bold;">View ${s.product_count} Products</a>` : 
+            `<span style="display:block; text-align:center; background:#fef3c7; color:#92400e; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:600;">🆕 Newly Registered</span>`
+          }
+        </div>
+      `;
+      marker.bindPopup(popupContent);
+      markers[s.id] = marker;
+      group.addLayer(marker);
+    }
+  });
+
+  if (shopsData.length > 0) {
+    map.fitBounds(group.getBounds().pad(0.1));
+  }
+
+  function focusShop(id, lat, lng) {
+    if (markers[id]) {
+      map.setView([lat, lng], 16, { animate: true });
+      markers[id].openPopup();
+    }
+    document.querySelectorAll('.shop-card').forEach(c => c.classList.remove('highlighted'));
+    const card = document.getElementById('card-shop-' + id);
+    if (card) card.classList.add('highlighted');
+  }
+</script>
+{% endblock %}

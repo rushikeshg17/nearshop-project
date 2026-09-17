@@ -34,7 +34,8 @@
     <div class="collapse navbar-collapse" id="mainNav">
       <ul class="navbar-nav ms-auto align-items-center gap-1 py-2 py-lg-0">
         <li class="nav-item"><a class="nav-link fw-medium" href="{{ url_for('main.index') }}">Home</a></li>
-        <li class="nav-item"><a class="nav-link fw-medium" href="{{ url_for('search.search') }}">Search</a></li>
+        <li class="nav-item"><a class="nav-link fw-medium" href="{{ url_for('search.search') }}">Search Products</a></li>
+        <li class="nav-item"><a class="nav-link fw-medium" href="{{ url_for('search.shops') }}"><i class="bi bi-shop me-1"></i>Shops</a></li>
 
         {% if current_user %}
           {% if current_user.role == 'owner' %}
